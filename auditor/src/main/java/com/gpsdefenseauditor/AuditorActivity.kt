@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 class AuditorActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LiveFeedStore.restore(applicationContext)
         setContent {
             MaterialTheme {
                 AuditorScreen(intent?.getStringExtra(Intent.EXTRA_TEXT).orEmpty())
