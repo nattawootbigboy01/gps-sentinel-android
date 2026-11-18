@@ -55,7 +55,7 @@ class DetectionSignalEngineTest {
     @Test fun cleanConsistentEvidenceDoesNotCreateAnAlert() {
         val result = DetectionSignalEngine.assess(
             listOf(
-                sample(wall = 1_000_000L, elapsed = 1_000_000_000L),
+                sample(wall = 1_900_000L, elapsed = 1_000_000_000L),
                 sample(lat = 16.46201, wall = 2_000_000L, elapsed = 2_000_000_000L, speed = 1.1f)
             ),
             2_000_000L
