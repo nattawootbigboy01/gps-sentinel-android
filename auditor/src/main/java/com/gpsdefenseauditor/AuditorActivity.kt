@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,7 @@ class AuditorActivity : ComponentActivity() {
 
 @Composable
 private fun AuditorScreen(incomingReport: String) {
+    val liveFix by LiveFeedStore.latest.collectAsState()
     var cases by remember { mutableStateOf(AuditReportParser.parse(incomingReport)) }
     var sourceLabel by remember {
         mutableStateOf(if (incomingReport.isBlank()) "ยังไม่มีรายงานจาก GPS LAB" else "รับข้อมูลจากการแชร์แล้ว")
@@ -65,6 +67,20 @@ private fun AuditorScreen(incomingReport: String) {
             Text("GPS DEFENSE AUDITOR", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("ระบบประเมินผลการทดสอบ GPS", color = MaterialTheme.colorScheme.primary)
             Text(sourceLabel, fontSize = 13.sp)
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("ข้อมูล GPS แบบเรียลไทม์", fontWeight = FontWeight.Bold)
+                    if (liveFix == null) {
+                        Text("รอข้อมูลจาก GPS LAB • เปิด LAB แล้วเริ่มจำลองเส้นทาง")
+                    } else {
+                        val fix = liveFix!!
+                        Text("รับแพ็กเก็ตลำดับ #${fix.sequence} • ${fix.source}")
+                        Text("พิกัด: %.6f, %.6f".format(fix.latitude, fix.longitude))
+                        Text("ความเร็ว: ${fix.speedKmh} กม./ชม. • Accuracy: %.1f ม.".format(fix.accuracyMeters))
+                        Text("เวลาอุปกรณ์: " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(fix.timestampMs)))
+                    }
+                }
+            }
             AuditRouteAnalyzer.distanceKm(incomingReport)?.let { km ->
                 Text("ระยะทางเส้นทางที่แนบ: %.2f กม.".format(km), fontWeight = FontWeight.SemiBold)
             }
