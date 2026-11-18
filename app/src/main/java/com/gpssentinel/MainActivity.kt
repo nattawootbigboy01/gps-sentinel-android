@@ -109,7 +109,7 @@ private fun SentinelScreen() {
     var simSpeed by remember { mutableIntStateOf(35) }
     var simRunning by remember { mutableStateOf(false) }
     var useSimulator by remember { mutableStateOf(false) }
-    var showResearch by remember { mutableStateOf(true) }
+    var showResearch by remember { mutableStateOf(false) }
     var followLocation by remember { mutableStateOf(true) }
     var status by remember { mutableStateOf("กำลังตรวจสอบสิทธิ์ GPS") }
     var mockSignal by remember { mutableStateOf(false) }
@@ -404,12 +404,19 @@ private fun SentinelScreen() {
         }
 
         Surface(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+            Modifier.align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .heightIn(max = 560.dp)
+                .navigationBarsPadding(),
             color = Color.White,
             shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
             shadowElevation = 12.dp
         ) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
                 Text(if (useSimulator) "SIMULATOR • ${simSpeed} km/h" else "GPS จริง • ตำแหน่งจากโทรศัพท์", color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(5.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
