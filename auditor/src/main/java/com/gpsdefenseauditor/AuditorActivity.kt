@@ -63,6 +63,7 @@ private fun AuditorScreen(incomingReport: String) {
     var cases by remember { mutableStateOf(AuditReportParser.parse(incomingReport)) }
     val context = LocalContext.current
     var selfDefenseRuns by remember { mutableStateOf(SelfDefenseStore.history(context)) }
+    var researchReports by remember { mutableStateOf(AutonomousResearchStore.history(context)) }
     val mapView = remember {
         Configuration.getInstance().userAgentValue = context.packageName
         MapView(context).apply {
@@ -175,6 +176,35 @@ private fun AuditorScreen(incomingReport: String) {
                         Text("แนวทาง: ${recommendation.action}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text("ระบบเสนอแนวทางเท่านั้น ยังไม่แก้กฎตรวจจับอัตโนมัติ ต้องตรวจสอบและอนุมัติก่อนนำไปใช้", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                }
+            }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("MAHATHEP AUTONOMOUS SECURITY RESEARCH", fontWeight = FontWeight.Bold)
+                    Text("Research Engine v${AutonomousResearchEngine.ENGINE_VERSION} • วิเคราะห์หลักฐานและตั้งสมมติฐาน")
+                    val latestResearch = researchReports.firstOrNull()
+                    if (latestResearch == null) {
+                        Text("ยังไม่มีรอบค้นคว้า • เริ่มจากรายงานทดสอบที่มีอยู่")
+                    } else {
+                        Text("รอบล่าสุด: ${latestResearch.casesReviewed} กรณี • หลักฐาน ${latestResearch.evidenceCount} รายการ")
+                        Text("หมวดความรู้: ${latestResearch.topicsCovered.joinToString().ifBlank { "ยังจำแนกไม่ได้" }}", fontSize = 12.sp)
+                        latestResearch.hypotheses.forEach { hypothesis ->
+                            Text(hypothesis.title, fontWeight = FontWeight.SemiBold)
+                            Text("หลักฐาน: ${hypothesis.evidence} • ความเชื่อมั่น: ${hypothesis.confidence}", fontSize = 11.sp)
+                            Text("ทดสอบอย่างปลอดภัย: ${hypothesis.safeExperiment}", fontSize = 12.sp)
+                            Text("แนวทางป้องกัน: ${hypothesis.defensiveAction}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(latestResearch.limitations, fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
+                    }
+                    Text("ประวัติ ${researchReports.size}/50 รอบ • เก็บในเครื่อง", fontSize = 11.sp)
+                    Button(onClick = {
+                        val report = AutonomousResearchStore.run(context, cases)
+                        researchReports = AutonomousResearchStore.history(context)
+                        Toast.makeText(context, "เริ่มวิเคราะห์หลักฐานแล้ว • ${report.hypotheses.size} สมมติฐาน", Toast.LENGTH_LONG).show()
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("เริ่มค้นคว้าและวิเคราะห์")
+                    }
+                    Text("ระบบไม่สแกนแอปอื่น ไม่ข้ามระบบล็อก ไม่เปลี่ยนกฎจริง และไม่อ้างว่าค้นเว็บสด การค้นคว้ารอบนี้วิเคราะห์จากหลักฐานที่ AUDITOR ได้รับ", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
                 }
             }
             Card(Modifier.fillMaxWidth()) {
