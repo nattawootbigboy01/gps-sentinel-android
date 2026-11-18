@@ -46,12 +46,12 @@ private val Teal = Color(0xFF087F83)
 private val DemoPoint = GeoPoint(16.4620, 102.8230)
 
 private class RouteDrawOverlay(
-    var enabled: Boolean,
+    var drawingEnabled: Boolean,
     var onRouteFinished: (List<GeoPoint>) -> Unit
 ) : Overlay() {
     private val points = mutableListOf<GeoPoint>()
     override fun onTouchEvent(event: MotionEvent, mapView: MapView): Boolean {
-        if (!enabled) return false
+        if (!drawingEnabled) return false
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 points.clear()
@@ -226,7 +226,7 @@ private fun SentinelScreen() {
             },
             update = { map ->
                 val drawOverlay = map.overlays.filterIsInstance<RouteDrawOverlay>().firstOrNull()
-                drawOverlay?.enabled = drawingRoute
+                drawOverlay?.drawingEnabled = drawingRoute
                 drawOverlay?.onRouteFinished = { points ->
                     routePoints = points
                     routeIndex = 0
