@@ -10,6 +10,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -127,6 +128,9 @@ private fun SentinelScreen() {
     var routeInfo by remember { mutableStateOf("ยังไม่มีเส้นทางอัตโนมัติ") }
     var stopAtRouteEnd by remember { mutableStateOf(false) }
     var liveSequence by remember { mutableLongStateOf(0L) }
+    var testSessionStartElapsedMs by remember { mutableLongStateOf(0L) }
+    var testSessionElapsedMs by remember { mutableLongStateOf(0L) }
+    val maxTestDurationMs = 2L * 60L * 60L * 1000L
     val launchableApps = remember { TargetAppCatalog.load(context) }
     var selectedTarget by remember { mutableStateOf(TargetAppCatalog.restore(context)) }
     var showTargetPicker by remember { mutableStateOf(false) }
@@ -210,6 +214,16 @@ private fun SentinelScreen() {
 
     LaunchedEffect(simRunning, useSimulator, simSpeed, systemMockEnabled, stopAtRouteEnd) {
         while (simRunning && useSimulator) {
+            val sessionElapsed = if (testSessionStartElapsedMs > 0L) SystemClock.elapsedRealtime() - testSessionStartElapsedMs else 0L
+            testSessionElapsedMs = sessionElapsed.coerceAtLeast(0L)
+            if (sessionElapsed >= maxTestDurationMs) {
+                simRunning = false
+                mockLocationController.stop()
+                systemMockEnabled = false
+                speed = 0
+                status = "ครบเวลาทดสอบ 2 ชั่วโมงแล้ว • ปิด Android Mock Location อัตโนมัติ"
+                break
+            }
             if (routePoints.size >= 2) {
                 val frame = RoutePlaybackEngine.advance(
                     route = routePoints,
@@ -235,10 +249,12 @@ private fun SentinelScreen() {
                 simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
             }
             speed = simSpeed
+            var providerPublishCallReturned = false
             if (systemMockEnabled) {
                 try {
                     val point = simPoint ?: realPoint ?: DemoPoint
                     mockLocationController.update(point.latitude, point.longitude, simSpeed.toFloat(), 5f)
+                    providerPublishCallReturned = true
                 } catch (_: SecurityException) {
                     systemMockEnabled = false
                     status = "Android ปฏิเสธ Mock Location: ตรวจว่าเลือก มหาเทพ LAB ใน Developer Options แล้ว"
@@ -259,6 +275,11 @@ private fun SentinelScreen() {
                     putExtra("accuracy_m", 5.0f)
                     putExtra("timestamp_ms", System.currentTimeMillis())
                     putExtra("source", "GPS_LAB_SIMULATOR")
+                    putExtra("session_elapsed_ms", testSessionElapsedMs)
+                    putExtra("session_limit_ms", maxTestDurationMs)
+                    putExtra("mock_provider_enabled", systemMockEnabled)
+                    putExtra("mock_provider_publish_call_returned", providerPublishCallReturned)
+                    putExtra("target_package", selectedTarget?.packageName ?: "UNSELECTED")
                 }
                 context.sendBroadcast(feed, "com.gpsdefenseauditor.permission.LIVE_FEED")
                 status = "SIMULATOR • ส่งข้อมูลสดไปยัง GPS DEFENSE AUDITOR"
@@ -627,22 +648,29 @@ private fun SentinelScreen() {
                                     if (!simRunning) {
                                         simPoint = if (routePoints.size >= 2) routePoints.first() else simPoint ?: realPoint ?: DemoPoint
                                         routeProgressMeters = 0.0
+                                        stopAtRouteEnd = false
+                                        testSessionStartElapsedMs = SystemClock.elapsedRealtime()
+                                        testSessionElapsedMs = 0L
                                         followLocation = true
                                         simRunning = true
-                                        status = "กำลังจำลองตำแหน่งภายในแอป"
+                                        status = "เริ่มทดสอบต่อเนื่อง 2 ชั่วโมง • เส้นทางจะวนซ้ำ"
                                     } else {
                                         simRunning = false
+                                        testSessionStartElapsedMs = 0L
                                         mockLocationController.stop()
                                         systemMockEnabled = false
                                         status = "หยุดการจำลองและปิด Android Mock Location แล้ว"
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
-                            ) { Text(if (simRunning) "หยุดจำลอง" else "เริ่มจำลอง") }
+                            ) { Text(if (simRunning) "หยุดทดสอบ" else "เริ่มทดสอบ 2 ชั่วโมง") }
                             OutlinedButton(onClick = { simRunning = false; mockLocationController.stop(); systemMockEnabled = false; simPoint = realPoint ?: DemoPoint; speed = 0; status = "รีเซ็ตและปิด Android Mock Location แล้ว" }) {
                                 Text("รีเซ็ต")
                             }
                         }
+                        val elapsedMinutes = testSessionElapsedMs / 60000L
+                        val elapsedSeconds = (testSessionElapsedMs / 1000L) % 60L
+                        Text("ระยะเวลาทดสอบ: %02d:%02d / 120:00 นาที".format(elapsedMinutes, elapsedSeconds), color = RouteBlue, fontSize = 12.sp)
                         Text("คำเตือน: Android Mock Location เป็นผู้ให้บริการระดับระบบ แอปอื่นที่ร้องขอ GPS อาจได้รับตำแหน่งทดสอบด้วย ใช้กับแอปที่คุณเป็นเจ้าของหรือได้รับอนุญาต และปิดทันทีเมื่อจบทดสอบ", color = Color.Gray, fontSize = 10.sp)
                         if (showMockAuthorizationDialog) {
                             AlertDialog(
