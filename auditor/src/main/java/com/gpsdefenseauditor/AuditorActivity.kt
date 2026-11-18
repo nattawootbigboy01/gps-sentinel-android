@@ -65,6 +65,9 @@ private fun AuditorScreen(incomingReport: String) {
             Text("GPS DEFENSE AUDITOR", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("ระบบประเมินผลการทดสอบ GPS", color = MaterialTheme.colorScheme.primary)
             Text(sourceLabel, fontSize = 13.sp)
+            AuditRouteAnalyzer.distanceKm(incomingReport)?.let { km ->
+                Text("ระยะทางเส้นทางที่แนบ: %.2f กม.".format(km), fontWeight = FontWeight.SemiBold)
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricCard("ทดสอบทั้งหมด", summary.total.toString(), Modifier.weight(1f))
                 MetricCard("ผ่านเกณฑ์", "${summary.passed}/${summary.total}", Modifier.weight(1f))
