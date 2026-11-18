@@ -2,7 +2,7 @@ name: Android Build
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "feature/gps-risk-engine-v1", "feature/gps-lab-auditor-split-v1" ]
+    branches: [ "main", "feature/gps-risk-engine-v1", "feature/gps-lab-auditor-split-v1", "work/mahathep-session-token-guard-v1" ]
 
 jobs:
   build:
