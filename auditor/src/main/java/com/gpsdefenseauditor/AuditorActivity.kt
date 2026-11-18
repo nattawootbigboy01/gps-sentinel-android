@@ -65,6 +65,9 @@ private fun AuditorScreen(incomingReport: String) {
     var selfDefenseRuns by remember { mutableStateOf(SelfDefenseStore.history(context)) }
     var researchReports by remember { mutableStateOf(AutonomousResearchStore.history(context)) }
     var coreReports by remember { mutableStateOf(SecurityCoreStore.history(context)) }
+    var evolutionReports by remember { mutableStateOf(EvolutionStore.history(context)) }
+    var evolutionEnabled by remember { mutableStateOf(EvolutionScheduler.isEnabled(context)) }
+    LaunchedEffect(cases) { EvolutionStore.saveSourceCases(context, cases) }
     val mapView = remember {
         Configuration.getInstance().userAgentValue = context.packageName
         MapView(context).apply {
@@ -144,6 +147,46 @@ private fun AuditorScreen(incomingReport: String) {
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("MAHATHEP AUTONOMOUS EVOLUTION", fontWeight = FontWeight.Bold)
+                    Text("Evolution Engine v${MahathepEvolutionEngine.ENGINE_VERSION} • สร้าง Test Case และกฎผู้สมัครจากหลักฐาน")
+                    val latestEvolution = evolutionReports.firstOrNull()
+                    if (latestEvolution == null) {
+                        Text("ยังไม่มีรอบ Evolution • รับรายงานจาก LAB ก่อน")
+                    } else {
+                        Text("สถานะ: ${latestEvolution.status}", fontWeight = FontWeight.SemiBold)
+                        Text("อ่าน ${latestEvolution.sourceCases} cases • สร้าง Test Case ใหม่ ${latestEvolution.generatedCases.size} • กฎผู้สมัคร ${latestEvolution.candidateRules.size}")
+                        latestEvolution.generatedCases.forEach { generated ->
+                            Text("TEST: ${generated.id} • Expected: ${generated.expected}", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            Text(generated.reason, fontSize = 11.sp)
+                        }
+                        latestEvolution.validations.forEach { validation ->
+                            Text(
+                                "RULE ${validation.findingCode}: missed ${validation.missedBefore}→${validation.missedAfter}, false alarm ${validation.falseAlarmsBefore}→${validation.falseAlarmsAfter} • ${if (validation.acceptedForReview) "ผ่านเกณฑ์เบื้องต้น" else "ต้องตรวจสอบ"}",
+                                fontSize = 11.sp
+                            )
+                        }
+                        Text(latestEvolution.notes, fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
+                    }
+                    Text("ประวัติ ${evolutionReports.size}/50 รอบ • ทำงานในเครื่อง", fontSize = 11.sp)
+                    Text("ตารางอัตโนมัติ: ${if (evolutionEnabled) "เปิดใช้งาน (WorkManager อย่างน้อยทุก 15 นาที)" else "ปิดใช้งาน"}", fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = {
+                            EvolutionStore.saveSourceCases(context, cases)
+                            EvolutionScheduler.runOnce(context)
+                            Toast.makeText(context, "ส่งงาน Evolution เข้าคิวแล้ว", Toast.LENGTH_SHORT).show()
+                        }, modifier = Modifier.weight(1f)) { Text("ทำงานหนึ่งรอบ") }
+                        OutlinedButton(onClick = {
+                            if (evolutionEnabled) EvolutionScheduler.stop(context) else EvolutionScheduler.start(context)
+                            evolutionEnabled = EvolutionScheduler.isEnabled(context)
+                            Toast.makeText(context, if (evolutionEnabled) "เปิดรอบอัตโนมัติแล้ว" else "หยุดรอบอัตโนมัติแล้ว", Toast.LENGTH_SHORT).show()
+                        }, modifier = Modifier.weight(1f)) { Text(if (evolutionEnabled) "หยุดอัตโนมัติ" else "เริ่มอัตโนมัติ") }
+                    }
+                    Text("แต่ละรอบทำงานแบบจำกัดและจบในตัวเอง Android อาจเลื่อนเวลาทำงานตามแบตเตอรี่และข้อจำกัดเบื้องหลัง กฎที่สร้างเป็นเพียง Candidate ไม่เปลี่ยนระบบจริง", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
