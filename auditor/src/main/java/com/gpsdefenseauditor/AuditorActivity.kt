@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -58,37 +56,12 @@ class AuditorActivity : ComponentActivity() {
     }
 }
 
-private data class TargetApp(val packageName: String, val label: String)
-
 @Composable
 private fun AuditorScreen(incomingReport: String) {
     val liveFix by LiveFeedStore.latest.collectAsState()
     val liveHistory by LiveFeedStore.history.collectAsState()
     var cases by remember { mutableStateOf(AuditReportParser.parse(incomingReport)) }
     val context = LocalContext.current
-    val targetApps = remember {
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        @Suppress("DEPRECATION")
-        context.packageManager.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL)
-            .mapNotNull { resolve ->
-                val packageName = resolve.activityInfo?.packageName ?: return@mapNotNull null
-                if (packageName == context.packageName || packageName == "com.gpssentinel") return@mapNotNull null
-                val label = runCatching {
-                    resolve.loadLabel(context.packageManager).toString()
-                }.getOrDefault(packageName)
-                TargetApp(packageName, label)
-            }
-            .distinctBy { it.packageName }
-            .sortedBy { it.label.lowercase() }
-    }
-    val targetPrefs = remember {
-        context.getSharedPreferences("auditor_target_app", android.content.Context.MODE_PRIVATE)
-    }
-    var selectedTargetPackage by remember {
-        mutableStateOf(targetPrefs.getString("package", null).orEmpty())
-    }
-    var showTargetApps by remember { mutableStateOf(false) }
-    val selectedTarget = targetApps.firstOrNull { it.packageName == selectedTargetPackage }
     val mapView = remember {
         Configuration.getInstance().userAgentValue = context.packageName
         MapView(context).apply {
@@ -136,51 +109,6 @@ private fun AuditorScreen(incomingReport: String) {
             Text("GPS DEFENSE AUDITOR", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("ระบบประเมินผลการทดสอบ GPS", color = MaterialTheme.colorScheme.primary)
             Text(sourceLabel, fontSize = 13.sp)
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("แอปเป้าหมายที่ต้องการประเมิน", fontWeight = FontWeight.Bold)
-                    if (selectedTarget == null) {
-                        Text("ยังไม่ได้เลือกแอป")
-                    } else {
-                        Text(selectedTarget.label, fontWeight = FontWeight.SemiBold)
-                        Text(selectedTarget.packageName, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    OutlinedButton(onClick = { showTargetApps = !showTargetApps }) {
-                        Text(if (showTargetApps) "ซ่อนรายชื่อแอป" else "เลือกแอปที่ติดตั้ง")
-                    }
-                    if (showTargetApps) {
-                        if (targetApps.isEmpty()) {
-                            Text("ไม่พบแอปที่เปิดจากหน้าจอแอปได้")
-                        } else {
-                            Text("พบ ${targetApps.size} แอป • เลือกแอปที่คุณเป็นเจ้าของหรือได้รับอนุญาตให้ทดสอบ", fontSize = 12.sp)
-                            targetApps.forEach { app ->
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(app.label, fontWeight = FontWeight.Medium)
-                                        Text(app.packageName, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    OutlinedButton(onClick = {
-                                        selectedTargetPackage = app.packageName
-                                        targetPrefs.edit().putString("package", app.packageName).apply()
-                                        showTargetApps = false
-                                    }) {
-                                        Text(if (app.packageName == selectedTargetPackage) "เลือกแล้ว" else "เลือก")
-                                    }
-                                }
-                                HorizontalDivider()
-                            }
-                        }
-                    }
-                    Text(
-                        "การเลือกแอปเป็นการกำหนดเป้าหมายและผูกผลรายงานเท่านั้น ไม่ได้ทำให้ Android ส่ง Mock Location เฉพาะแอปนั้น",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
             Text("บันทึกเหตุการณ์ในเครื่อง: ${liveHistory.size}/200", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -238,27 +166,25 @@ private fun AuditorScreen(incomingReport: String) {
                 onClick = {
                     val clipboardText = buildString {
                         appendLine("MAHATHEP AUDITOR - SECURITY TEST REPORT")
-                        appendLine("แหล่งข้อมูล: \${sourceLabel}")
-                        appendLine("แอปเป้าหมาย: \${selectedTarget?.label ?: "ไม่ได้เลือก"}")
-                        appendLine("Package: \${selectedTarget?.packageName ?: "-"}")
-                        appendLine("สรุป: ทั้งหมด \${summary.total}, ผ่าน \${summary.passed}, พลาดการตรวจจับ \${summary.missed}, แจ้งเตือนเกิน \${summary.falseAlarms}, คะแนนเฉลี่ย \${summary.averageScore}/100")
+                        appendLine("แหล่งข้อมูล: ${sourceLabel}")
+                        appendLine("สรุป: ทั้งหมด ${summary.total}, ผ่าน ${summary.passed}, พลาดการตรวจจับ ${summary.missed}, แจ้งเตือนเกิน ${summary.falseAlarms}, คะแนนเฉลี่ย ${summary.averageScore}/100")
                         appendLine()
                         appendLine("[LIVE GPS]")
                         liveFix?.let { fix ->
-                            appendLine("sequence=\${fix.sequence}, source=\${fix.source}")
-                            appendLine("latitude=\${fix.latitude}, longitude=\${fix.longitude}")
-                            appendLine("speedKmh=\${fix.speedKmh}, accuracyMeters=\${fix.accuracyMeters}, timestampMs=\${fix.timestampMs}")
+                            appendLine("sequence=${fix.sequence}, source=${fix.source}")
+                            appendLine("latitude=${fix.latitude}, longitude=${fix.longitude}")
+                            appendLine("speedKmh=${fix.speedKmh}, accuracyMeters=${fix.accuracyMeters}, timestampMs=${fix.timestampMs}")
                         } ?: appendLine("ยังไม่มีข้อมูล GPS ล่าสุด")
                         appendLine()
                         appendLine("[GPS HISTORY - ล่าสุดไม่เกิน 50 รายการ]")
                         liveHistory.takeLast(50).forEach { fix ->
-                            appendLine("#\${fix.sequence}|\${fix.latitude},\${fix.longitude}|\${fix.speedKmh} km/h|accuracy=\${fix.accuracyMeters}m|time=\${fix.timestampMs}|\${fix.source}")
+                            appendLine("#${fix.sequence}|${fix.latitude},${fix.longitude}|${fix.speedKmh} km/h|accuracy=${fix.accuracyMeters}m|time=${fix.timestampMs}|${fix.source}")
                         }
                         appendLine()
                         appendLine("[TEST CASES]")
                         if (cases.isEmpty()) appendLine("ไม่มีผลทดสอบ")
                         cases.forEach { item ->
-                            appendLine("CASE|\${item.name}|expected=\${item.expected}|actual=\${item.actual}|score=\${item.score}|passed=\${item.passed}|findings=\${item.findings}")
+                            appendLine("CASE|${item.name}|expected=${item.expected}|actual=${item.actual}|score=${item.score}|passed=${item.passed}|findings=${item.findings}")
                         }
                         appendLine()
                         appendLine("หมายเหตุ: รายงานนี้มีพิกัด GPS จริง/จำลอง โปรดตรวจสอบก่อนส่งต่อ และใช้เฉพาะข้อมูลที่ได้รับอนุญาต")
