@@ -46,6 +46,7 @@ class AuditorActivity : ComponentActivity() {
 @Composable
 private fun AuditorScreen(incomingReport: String) {
     val liveFix by LiveFeedStore.latest.collectAsState()
+    val liveHistory by LiveFeedStore.history.collectAsState()
     var cases by remember { mutableStateOf(AuditReportParser.parse(incomingReport)) }
     var sourceLabel by remember {
         mutableStateOf(if (incomingReport.isBlank()) "ยังไม่มีรายงานจาก GPS LAB" else "รับข้อมูลจากการแชร์แล้ว")
@@ -67,6 +68,7 @@ private fun AuditorScreen(incomingReport: String) {
             Text("GPS DEFENSE AUDITOR", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("ระบบประเมินผลการทดสอบ GPS", color = MaterialTheme.colorScheme.primary)
             Text(sourceLabel, fontSize = 13.sp)
+            Text("บันทึกเหตุการณ์ในเครื่อง: ${liveHistory.size}/200", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("ข้อมูล GPS แบบเรียลไทม์", fontWeight = FontWeight.Bold)
@@ -78,6 +80,25 @@ private fun AuditorScreen(incomingReport: String) {
                         Text("พิกัด: %.6f, %.6f".format(fix.latitude, fix.longitude))
                         Text("ความเร็ว: ${fix.speedKmh} กม./ชม. • Accuracy: %.1f ม.".format(fix.accuracyMeters))
                         Text("เวลาอุปกรณ์: " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(fix.timestampMs)))
+                    }
+                }
+            }
+            if (liveHistory.isNotEmpty()) {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("ประวัติข้อมูล GPS ล่าสุด", fontWeight = FontWeight.Bold)
+                        liveHistory.takeLast(10).asReversed().forEach { fix ->
+                            Text(
+                                "#${fix.sequence} • ${"%.5f".format(fix.latitude)}, ${"%.5f".format(fix.longitude)}",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                "${fix.speedKmh} กม./ชม. • ความแม่นยำ ${"%.1f".format(fix.accuracyMeters)} ม. • ${fix.source}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
