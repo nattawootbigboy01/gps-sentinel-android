@@ -62,6 +62,7 @@ private fun AuditorScreen(incomingReport: String) {
     val liveHistory by LiveFeedStore.history.collectAsState()
     var cases by remember { mutableStateOf(AuditReportParser.parse(incomingReport)) }
     val context = LocalContext.current
+    var selfDefenseRuns by remember { mutableStateOf(SelfDefenseStore.history(context)) }
     val mapView = remember {
         Configuration.getInstance().userAgentValue = context.packageName
         MapView(context).apply {
@@ -174,6 +175,38 @@ private fun AuditorScreen(incomingReport: String) {
                         Text("แนวทาง: ${recommendation.action}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text("ระบบเสนอแนวทางเท่านั้น ยังไม่แก้กฎตรวจจับอัตโนมัติ ต้องตรวจสอบและอนุมัติก่อนนำไปใช้", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                }
+            }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("MAHATHEP SELF-DEFENSE", fontWeight = FontWeight.Bold)
+                    Text("ระบบทดสอบสุขภาพระบบป้องกันตัวเอง • ทำงานในเครื่อง")
+                    val latestRun = selfDefenseRuns.firstOrNull()
+                    if (latestRun == null) {
+                        Text("ยังไม่มีประวัติการทดสอบตัวเอง")
+                    } else {
+                        Text(
+                            "ผลล่าสุด: ${if (latestRun.passed) "ผ่าน" else "ไม่ผ่าน"} • ${latestRun.checksPassed}/${latestRun.checksTotal}",
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (latestRun.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                        Text(latestRun.summary, fontSize = 12.sp)
+                        Text("ทดสอบเมื่อ " + java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(latestRun.timestampMs)), fontSize = 11.sp)
+                    }
+                    Text("ประวัติการทดสอบ: ${selfDefenseRuns.size} รอบ • เก็บในเครื่องสูงสุด 100 รอบ", fontSize = 12.sp)
+                    Button(
+                        onClick = {
+                            val result = SelfDefenseStore.runSelfTest(context)
+                            selfDefenseRuns = SelfDefenseStore.history(context)
+                            Toast.makeText(context, "Self-Defense: ${result.checksPassed}/${result.checksTotal} checks", Toast.LENGTH_LONG).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("ทดสอบระบบป้องกันตัวเอง") }
+                    Text(
+                        "ใช้ข้อมูลสังเคราะห์เพื่อตรวจกลไกวิเคราะห์เท่านั้น ยังไม่ใช่การทดสอบเจาะระบบจริง และไม่มีการแก้ไขกฎหรือโค้ดอัตโนมัติ",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             Button(
