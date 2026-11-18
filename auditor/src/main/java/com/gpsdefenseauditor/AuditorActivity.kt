@@ -67,6 +67,7 @@ private fun AuditorScreen(incomingReport: String) {
     var coreReports by remember { mutableStateOf(SecurityCoreStore.history(context)) }
     var evolutionReports by remember { mutableStateOf(EvolutionStore.history(context)) }
     var evolutionEnabled by remember { mutableStateOf(EvolutionScheduler.isEnabled(context)) }
+    var targetSummary by remember { mutableStateOf(readTargetSummary(incomingReport)) }
     LaunchedEffect(cases) { EvolutionStore.saveSourceCases(context, cases) }
     val mapView = remember {
         Configuration.getInstance().userAgentValue = context.packageName
@@ -102,6 +103,7 @@ private fun AuditorScreen(incomingReport: String) {
     LaunchedEffect(incomingReport) {
         if (incomingReport.isNotBlank()) {
             cases = AuditReportParser.parse(incomingReport)
+            targetSummary = readTargetSummary(incomingReport)
             sourceLabel = "รับข้อมูลจากการแชร์แล้ว"
         }
     }
@@ -115,6 +117,24 @@ private fun AuditorScreen(incomingReport: String) {
         ) {
             Text("GPS DEFENSE AUDITOR", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("ระบบประเมินผลการทดสอบ GPS", color = MaterialTheme.colorScheme.primary)
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("TARGET APP • แอปที่กำลังตรวจสอบ", fontWeight = FontWeight.Bold)
+                    Text(targetSummary, fontWeight = FontWeight.SemiBold)
+                    Text("รับชื่อแอปและเวอร์ชันจากรายงาน LAB เพื่อแยกผลทดสอบแต่ละแอป", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("ควบคุมด่วน • QUICK ACTIONS", fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { val result = SelfDefenseStore.runSelfTest(context); selfDefenseRuns = SelfDefenseStore.history(context); Toast.makeText(context, "Self-Defense " + result.checksPassed + "/" + result.checksTotal, Toast.LENGTH_SHORT).show() }, modifier = Modifier.weight(1f)) { Text("ทดสอบตัวเอง") }
+                        OutlinedButton(onClick = { SecurityCoreStore.run(context); coreReports = SecurityCoreStore.history(context); Toast.makeText(context, "ตรวจ Security Core แล้ว", Toast.LENGTH_SHORT).show() }, modifier = Modifier.weight(1f)) { Text("ตรวจ Core") }
+                    }
+                    OutlinedButton(onClick = { EvolutionStore.saveSourceCases(context, cases); EvolutionScheduler.runOnce(context); Toast.makeText(context, "Evolution เข้าคิวแล้ว • กดรีเฟรชหลังทำงาน", Toast.LENGTH_SHORT).show() }, modifier = Modifier.fillMaxWidth()) { Text("วิเคราะห์และสร้าง Test Case ใหม่") }
+                    OutlinedButton(onClick = { coreReports = SecurityCoreStore.history(context); selfDefenseRuns = SelfDefenseStore.history(context); researchReports = AutonomousResearchStore.history(context); evolutionReports = EvolutionStore.history(context); evolutionEnabled = EvolutionScheduler.isEnabled(context); Toast.makeText(context, "รีเฟรชข้อมูลทั้งหมดแล้ว", Toast.LENGTH_SHORT).show() }, modifier = Modifier.fillMaxWidth()) { Text("รีเฟรชข้อมูลทั้งหมด") }
+                }
+            }
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("MAHATHEP SECURITY CORE", fontWeight = FontWeight.Bold)
@@ -330,6 +350,7 @@ private fun AuditorScreen(incomingReport: String) {
                 onClick = {
                     val clipboardText = buildString {
                         appendLine("MAHATHEP AUDITOR - SECURITY TEST REPORT")
+                        appendLine("TARGET_APP|${targetSummary}")
                         appendLine("แหล่งข้อมูล: ${sourceLabel}")
                         appendLine("สรุป: ทั้งหมด ${summary.total}, ผ่าน ${summary.passed}, พลาดการตรวจจับ ${summary.missed}, แจ้งเตือนเกิน ${summary.falseAlarms}, คะแนนเฉลี่ย ${summary.averageScore}/100")
                         appendLine()
@@ -408,4 +429,12 @@ private fun MetricCard(label: String, value: String, modifier: Modifier = Modifi
             Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
     }
+}
+
+private fun readTargetSummary(report: String): String {
+    val line = report.lineSequence().firstOrNull { it.startsWith("APP|") } ?: return "ยังไม่ได้รับข้อมูลแอปเป้าหมายจาก LAB"
+    val parts = line.split("|", limit = 4)
+    if (parts.size < 3 || parts[1] == "UNSELECTED") return "รายงานนี้ยังไม่ได้เลือกแอปเป้าหมาย"
+    val version = parts.getOrNull(3).orEmpty().ifBlank { "ไม่ระบุเวอร์ชัน" }
+    return parts[2] + " • " + parts[1] + " • v" + version
 }
