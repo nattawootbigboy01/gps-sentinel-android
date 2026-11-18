@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
     <permission android:name="com.gpsdefenseauditor.permission.LIVE_FEED" android:protectionLevel="signature" />
     <application
         android:allowBackup="false"
