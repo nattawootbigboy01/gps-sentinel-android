@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SentinelScreen() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val locationManager = remember {
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
@@ -117,6 +119,9 @@ private fun SentinelScreen() {
     var drawingRoute by remember { mutableStateOf(false) }
     var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
     var routeProgressMeters by remember { mutableDoubleStateOf(0.0) }
+    var routeLoading by remember { mutableStateOf(false) }
+    var routeInfo by remember { mutableStateOf("ยังไม่มีเส้นทางอัตโนมัติ") }
+    var stopAtRouteEnd by remember { mutableStateOf(false) }
     var liveSequence by remember { mutableLongStateOf(0L) }
     val hasLocationPermission = remember {
         mutableStateOf(
@@ -196,13 +201,13 @@ private fun SentinelScreen() {
         }
     }
 
-    LaunchedEffect(simRunning, useSimulator, simSpeed, systemMockEnabled) {
+    LaunchedEffect(simRunning, useSimulator, simSpeed, systemMockEnabled, stopAtRouteEnd) {
         while (simRunning && useSimulator) {
             if (routePoints.size >= 2) {
                 val segments = routePoints.zipWithNext()
                 val totalDistance = segments.sumOf { (start, end) -> start.distanceToAsDouble(end) }
                 val nextProgress = routeProgressMeters + simSpeed / 3.6
-                val progress = if (nextProgress >= totalDistance) nextProgress % totalDistance else nextProgress
+                val progress = if (stopAtRouteEnd) nextProgress.coerceAtMost(totalDistance) else if (nextProgress >= totalDistance) nextProgress % totalDistance else nextProgress
                 routeProgressMeters = progress
                 var remaining = progress
                 var interpolated = routePoints.last()
@@ -220,7 +225,12 @@ private fun SentinelScreen() {
                 }
                 simPoint = interpolated
                 if (nextProgress >= totalDistance) {
-                    status = "วนเส้นทางต่อเนื่อง • กดหยุดเพื่อจบการจำลอง"
+                    if (stopAtRouteEnd) {
+                        simRunning = false
+                        status = "ถึงปลายทางแล้ว • หยุดจำลองอัตโนมัติ"
+                    } else {
+                        status = "วนเส้นทางต่อเนื่อง • กดหยุดเพื่อจบการจำลอง"
+                    }
                 }
             } else {
                 val point = simPoint ?: realPoint ?: DemoPoint
@@ -491,17 +501,58 @@ private fun SentinelScreen() {
                         }, modifier = Modifier.weight(1f)) {
                             Text(if (drawingRoute) "กำลังวาดเส้นทาง..." else "วางเส้นทางด้วยนิ้ว")
                         }
+                        OutlinedButton(
+                            onClick = {
+                                val origin = realPoint
+                                if (origin == null) {
+                                    status = "ยังไม่มี GPS ปัจจุบัน กรุณารอรับตำแหน่งก่อน"
+                                } else if (routeLoading) {
+                                    status = "กำลังค้นหาเส้นทางตามถนน..."
+                                } else {
+                                    simRunning = false
+                                    routeLoading = true
+                                    routeInfo = "กำลังค้นหาเส้นทางถนนในรัศมี 1 กม."
+                                    status = "กำลังค้นหาเส้นทางตามถนน..."
+                                    coroutineScope.launch {
+                                        try {
+                                            val result = RoadRoutePlanner.createNearbyRoute(origin)
+                                            routePoints = result.points
+                                            routeProgressMeters = 0.0
+                                            stopAtRouteEnd = true
+                                            drawingRoute = false
+                                            followLocation = false
+                                            routeInfo = "เส้นทางถนน %.0f เมตร • จำกัดไม่เกิน 1 กม.".format(result.distanceMeters)
+                                            mapView?.controller?.animateTo(origin)
+                                            status = "สร้างเส้นทางตามถนนสำเร็จ • ตรวจสอบเส้นทางก่อนเริ่ม"
+                                        } catch (error: Exception) {
+                                            routeInfo = error.message ?: "สร้างเส้นทางไม่สำเร็จ"
+                                            status = routeInfo
+                                        } finally {
+                                            routeLoading = false
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = !routeLoading && !simRunning
+                        ) {
+                            Text(if (routeLoading) "กำลังหา..." else "สร้างเส้นทางถนนอัตโนมัติ")
+                        }
                         OutlinedButton(onClick = {
                             routePoints = emptyList()
                             routeProgressMeters = 0.0
+                            stopAtRouteEnd = false
+                            routeInfo = "ยังไม่มีเส้นทางอัตโนมัติ"
                             simRunning = false
                             status = "ล้างเส้นทางแล้ว"
                         }, modifier = Modifier.weight(1f)) { Text("ล้างเส้นทาง") }
                     }
                     if (routePoints.size >= 2) {
                         val km = routePoints.zipWithNext().sumOf { (a, b) -> a.distanceToAsDouble(b) } / 1000.0
-                        Text("ระยะเส้นที่วาดประมาณ %.2f กม.".format(km), color = RouteBlue, fontSize = 12.sp)
+                        Text("ระยะเส้นทาง %.2f กม.".format(km), color = RouteBlue, fontSize = 12.sp)
+                        Text(routeInfo, color = Color.DarkGray, fontSize = 11.sp)
                     }
+                    Text("เส้นทางอัตโนมัติใช้บริการ OpenStreetMap OSRM ผ่านอินเทอร์เน็ต ระบบจะไม่เริ่มจำลองจนกว่าคุณกดเริ่ม", color = Color.Gray, fontSize = 10.sp)
                     if (useSimulator) {
                         OutlinedButton(
                             onClick = {
