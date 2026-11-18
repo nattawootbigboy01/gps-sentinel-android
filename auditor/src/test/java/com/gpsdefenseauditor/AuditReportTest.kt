@@ -26,7 +26,7 @@ class AuditReportTest {
             "ROUTE|2",
             "POINT|16.46000|102.82000",
             "POINT|16.46100|102.82000"
-        ).joinToString("\\n")
+        ).joinToString("\n")
         val distance = AuditRouteAnalyzer.distanceKm(raw)
         assertTrue(distance != null && distance > 0.1 && distance < 0.12)
     }
