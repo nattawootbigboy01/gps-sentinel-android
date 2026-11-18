@@ -8,7 +8,19 @@ class MahathepEvolutionEngineTest {
         val cases = listOf(AuditCase("old", "HIGH", "LOW", 0, false, "IMPLAUSIBLE_DISPLACEMENT"))
         val generated = MahathepEvolutionEngine.generateCases(cases)
         assertTrue(generated.any { it.id == "IMPLAUSIBLE_JUMP" })
-        assertTrue(generated.all { it.expected == "HIGH" || it.expected == "REVIEW" })
+        assertEquals("REVIEW", generated.single().expected)
+    }
+
+    @Test fun recognizesFindingCodesFromAuditorExport() {
+        val cases = listOf(
+            AuditCase("stale", "REVIEW", "REVIEW", 25, true, "STALE_FIX"),
+            AuditCase("speed", "REVIEW", "REVIEW", 40, true, "IMPLAUSIBLE_ACCELERATION,SPEED_DISAGREEMENT"),
+            AuditCase("accuracy", "LOW", "LOW", 10, true, "LOW_ACCURACY")
+        )
+        val generated = MahathepEvolutionEngine.generateCases(cases)
+        assertTrue(generated.any { it.id == "STALE_FIX" })
+        assertTrue(generated.any { it.id == "SPEED_DISPLACEMENT_MISMATCH" })
+        assertTrue(generated.any { it.id == "LOW_ACCURACY_CONTEXT" && it.expected == "LOW" })
     }
 
     @Test fun doesNotInventScenariosWithoutRecognizedEvidence() {
@@ -23,6 +35,11 @@ class MahathepEvolutionEngineTest {
         assertEquals(1, candidates.size)
         assertEquals("HIGH", candidates.single().minimumSeverity)
         assertEquals("DRAFT", candidates.single().status)
+    }
+
+    @Test fun doesNotProposeRuleWhenAllCasesMatchExpectedSeverity() {
+        val cases = listOf(AuditCase("normal", "LOW", "LOW", 0, true, "ANDROID_MOCK_FLAG"))
+        assertTrue(MahathepEvolutionEngine.proposeRules(cases).isEmpty())
     }
 
     @Test fun rejectsCandidateThatWouldCreateFalseAlarm() {
