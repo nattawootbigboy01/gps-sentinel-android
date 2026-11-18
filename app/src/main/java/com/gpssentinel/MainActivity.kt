@@ -112,6 +112,7 @@ private fun SentinelScreen() {
     var drawingRoute by remember { mutableStateOf(false) }
     var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
     var routeProgressMeters by remember { mutableDoubleStateOf(0.0) }
+    var liveSequence by remember { mutableLongStateOf(0L) }
     val hasLocationPermission = remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -195,7 +196,8 @@ private fun SentinelScreen() {
             if (routePoints.size >= 2) {
                 val segments = routePoints.zipWithNext()
                 val totalDistance = segments.sumOf { (start, end) -> start.distanceToAsDouble(end) }
-                val progress = (routeProgressMeters + simSpeed / 3.6).coerceAtMost(totalDistance)
+                val nextProgress = routeProgressMeters + simSpeed / 3.6
+                val progress = if (nextProgress >= totalDistance) nextProgress % totalDistance else nextProgress
                 routeProgressMeters = progress
                 var remaining = progress
                 var interpolated = routePoints.last()
@@ -212,9 +214,8 @@ private fun SentinelScreen() {
                     remaining -= segmentDistance
                 }
                 simPoint = interpolated
-                if (progress >= totalDistance) {
-                    simRunning = false
-                    status = "จำลองถึงปลายทางแล้ว"
+                if (nextProgress >= totalDistance) {
+                    status = "วนเส้นทางต่อเนื่อง • กดหยุดเพื่อจบการจำลอง"
                 }
             } else {
                 val point = simPoint ?: realPoint ?: DemoPoint
@@ -222,7 +223,22 @@ private fun SentinelScreen() {
                 simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
             }
             speed = simSpeed
-            if (simRunning) status = "SIMULATOR • จำลองภายในแอปเท่านั้น"
+            if (simRunning) {
+                liveSequence += 1L
+                val live = simPoint ?: realPoint ?: DemoPoint
+                val feed = Intent("com.gpsdefenseauditor.action.LIVE_FIX").apply {
+                    setPackage("com.gpsdefenseauditor")
+                    putExtra("sequence", liveSequence)
+                    putExtra("latitude", live.latitude)
+                    putExtra("longitude", live.longitude)
+                    putExtra("speed_kmh", simSpeed)
+                    putExtra("accuracy_m", 5.0f)
+                    putExtra("timestamp_ms", System.currentTimeMillis())
+                    putExtra("source", "GPS_LAB_SIMULATOR")
+                }
+                context.sendBroadcast(feed, "com.gpsdefenseauditor.permission.LIVE_FEED")
+                status = "SIMULATOR • ส่งข้อมูลสดไปยัง GPS DEFENSE AUDITOR"
+            }
             delay(1000L)
         }
     }
