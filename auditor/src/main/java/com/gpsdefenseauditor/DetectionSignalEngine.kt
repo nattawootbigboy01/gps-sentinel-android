@@ -86,8 +86,8 @@ object DetectionSignalEngine {
         }
 
         val unique = findings.distinctBy { it.code to it.evidence }
-        val risk = unique.sumOf { finding ->
-            when (finding.code) {
+        val risk: Int = unique.fold(0) { total, finding ->
+            total + when (finding.code) {
                 "MOCK_PROVIDER_FLAG" -> 50
                 "INVALID_COORDINATES" -> 35
                 "FUTURE_TIMESTAMP" -> 20
