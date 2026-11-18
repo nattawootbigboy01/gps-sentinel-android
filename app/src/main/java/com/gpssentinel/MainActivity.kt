@@ -265,7 +265,7 @@ private fun SentinelScreen() {
                 drawOverlay?.drawingEnabled = drawingRoute
                 drawOverlay?.onRouteFinished = { points ->
                     routePoints = points
-                    routeIndex = 0
+                    routeProgressMeters = 0.0
                     drawingRoute = false
                     status = "วางเส้นทางแล้ว • ${points.size} จุด"
                 }
@@ -285,7 +285,7 @@ private fun SentinelScreen() {
                         map.overlays.add(it)
                     }
                     marker.position = point
-                    marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS SENTINEL" else "ตำแหน่ง GPS ของอุปกรณ์"
+                    marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS LAB" else "ตำแหน่ง GPS ของอุปกรณ์"
                     map.invalidate()
                 }
             }
