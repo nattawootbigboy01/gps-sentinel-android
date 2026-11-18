@@ -132,7 +132,8 @@ private fun SentinelScreen() {
     LaunchedEffect(simRunning, useSimulator, simSpeed) {
         while (simRunning && useSimulator) {
             val point = simPoint ?: realPoint ?: DemoPoint
-            simPoint = GeoPoint(point.latitude + 0.000035, point.longitude + 0.000055)
+            val scale = simSpeed / 35.0
+            simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
             speed = simSpeed
             status = "SIMULATOR • จำลองภายในแอปเท่านั้น"
             delay(1000L)
@@ -158,21 +159,24 @@ private fun SentinelScreen() {
                     controller.setZoom(16.0)
                     controller.setCenter(realPoint ?: DemoPoint)
                     mapView = this
-                    val marker = Marker(this)
-                    marker.position = displayedPoint ?: DemoPoint
-                    marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS SENTINEL" else "ตำแหน่ง GPS ของอุปกรณ์"
-                    marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    overlays.add(marker)
+                    displayedPoint?.let { point ->
+                        val marker = Marker(this)
+                        marker.position = point
+                        marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS SENTINEL" else "ตำแหน่ง GPS ของอุปกรณ์"
+                        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        overlays.add(marker)
+                    }
                 }
             },
             update = { map ->
                 val point = displayedPoint
                 if (point != null) {
-                    val marker = map.overlays.filterIsInstance<Marker>().firstOrNull()
-                    if (marker != null) {
-                        marker.position = point
-                        marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS SENTINEL" else "ตำแหน่ง GPS ของอุปกรณ์"
+                    val marker = map.overlays.filterIsInstance<Marker>().firstOrNull() ?: Marker(map).also {
+                        it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        map.overlays.add(it)
                     }
+                    marker.position = point
+                    marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS SENTINEL" else "ตำแหน่ง GPS ของอุปกรณ์"
                     map.invalidate()
                 }
             }
