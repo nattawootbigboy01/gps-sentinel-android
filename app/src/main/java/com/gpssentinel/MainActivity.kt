@@ -222,7 +222,7 @@ private fun SentinelScreen() {
                 simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
             }
             speed = simSpeed
-            status = "SIMULATOR • จำลองภายในแอปเท่านั้น"
+            if (simRunning) status = "SIMULATOR • จำลองภายในแอปเท่านั้น"
             delay(1000L)
         }
     }
