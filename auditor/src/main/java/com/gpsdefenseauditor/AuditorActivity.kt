@@ -186,6 +186,14 @@ private fun AuditorScreen(incomingReport: String) {
                             Toast.makeText(context, if (evolutionEnabled) "เปิดรอบอัตโนมัติแล้ว" else "หยุดรอบอัตโนมัติแล้ว", Toast.LENGTH_SHORT).show()
                         }, modifier = Modifier.weight(1f)) { Text(if (evolutionEnabled) "หยุดอัตโนมัติ" else "เริ่มอัตโนมัติ") }
                     }
+                    OutlinedButton(
+                        onClick = {
+                            evolutionReports = EvolutionStore.history(context)
+                            evolutionEnabled = EvolutionScheduler.isEnabled(context)
+                            Toast.makeText(context, "รีเฟรชประวัติ Evolution แล้ว", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("รีเฟรชผล Evolution") }
                     Text("แต่ละรอบทำงานแบบจำกัดและจบในตัวเอง Android อาจเลื่อนเวลาทำงานตามแบตเตอรี่และข้อจำกัดเบื้องหลัง กฎที่สร้างเป็นเพียง Candidate ไม่เปลี่ยนระบบจริง", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
