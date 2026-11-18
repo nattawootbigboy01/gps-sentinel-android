@@ -106,6 +106,7 @@ private fun SentinelScreen() {
     var anomalySignal by remember { mutableStateOf("") }
     var lastMeasuredLocation by remember { mutableStateOf<Location?>(null) }
     var auditReport by remember { mutableStateOf("ยังไม่ได้ตรวจสภาพแวดล้อม Android") }
+    var scenarioReport by remember { mutableStateOf("ยังไม่ได้รันทดสอบสถานการณ์จำลอง") }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var drawingRoute by remember { mutableStateOf(false) }
     var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
@@ -367,6 +368,22 @@ private fun SentinelScreen() {
                         Text("ตรวจสอบ Mock Location และ Developer Options")
                     }
                     Text(auditReport, color = Color.DarkGray, fontSize = 11.sp)
+                    OutlinedButton(
+                        onClick = {
+                            val results = GpsScenarioLab.runAll()
+                            val passed = results.count { it.passed }
+                            scenarioReport = "ผ่าน $passed/${results.size} สถานการณ์\\n" + results.joinToString("\\n") { result ->
+                                val mark = if (result.passed) "ผ่าน" else "ต้องปรับ"
+                                "$mark • ${result.name}: ${result.report.level} (${result.report.score}/100)"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Science, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("รันทดสอบ GPS เชิงลึก 8 สถานการณ์")
+                    }
+                    Text(scenarioReport, color = Color.DarkGray, fontSize = 11.sp)
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
