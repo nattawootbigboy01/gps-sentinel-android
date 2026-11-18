@@ -1,6 +1,8 @@
 package com.gpssentinel
 
 import android.Manifest
+import android.view.MotionEvent
+import android.graphics.Canvas
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -34,12 +36,48 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
+import org.osmdroid.views.overlay.Polyline
 import kotlin.math.roundToInt
 
 private val Ink = Color(0xFF202428)
 private val RouteBlue = Color(0xFF1687E8)
 private val Teal = Color(0xFF087F83)
 private val DemoPoint = GeoPoint(16.4620, 102.8230)
+
+private class RouteDrawOverlay(
+    var enabled: Boolean,
+    var onRouteFinished: (List<GeoPoint>) -> Unit
+) : Overlay() {
+    private val points = mutableListOf<GeoPoint>()
+    override fun onTouchEvent(event: MotionEvent, mapView: MapView): Boolean {
+        if (!enabled) return false
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                points.clear()
+                points.add(mapView.projection.fromPixels(event.x.toInt(), event.y.toInt()) as GeoPoint)
+                mapView.invalidate()
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val p = mapView.projection.fromPixels(event.x.toInt(), event.y.toInt()) as GeoPoint
+                val last = points.lastOrNull()
+                if (last == null || last.distanceToAsDouble(p) > 4.0) points.add(p)
+                mapView.invalidate()
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                val p = mapView.projection.fromPixels(event.x.toInt(), event.y.toInt()) as GeoPoint
+                if (points.isEmpty() || points.last().distanceToAsDouble(p) > 1.0) points.add(p)
+                if (points.size >= 2) onRouteFinished(points.toList())
+                points.clear()
+                mapView.invalidate()
+                return true
+            }
+        }
+        return true
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +103,9 @@ private fun SentinelScreen() {
     var followLocation by remember { mutableStateOf(true) }
     var status by remember { mutableStateOf("กำลังตรวจสอบสิทธิ์ GPS") }
     var mapView by remember { mutableStateOf<MapView?>(null) }
+    var drawingRoute by remember { mutableStateOf(false) }
+    var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
+    var routeIndex by remember { mutableIntStateOf(0) }
     val hasLocationPermission = remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -131,9 +172,19 @@ private fun SentinelScreen() {
 
     LaunchedEffect(simRunning, useSimulator, simSpeed) {
         while (simRunning && useSimulator) {
-            val point = simPoint ?: realPoint ?: DemoPoint
-            val scale = simSpeed / 35.0
-            simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
+            if (routePoints.size >= 2) {
+                val next = (routeIndex + 1).coerceAtMost(routePoints.lastIndex)
+                routeIndex = next
+                simPoint = routePoints[next]
+                if (next == routePoints.lastIndex) {
+                    simRunning = false
+                    status = "จำลองถึงปลายทางแล้ว"
+                }
+            } else {
+                val point = simPoint ?: realPoint ?: DemoPoint
+                val scale = simSpeed / 35.0
+                simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
+            }
             speed = simSpeed
             status = "SIMULATOR • จำลองภายในแอปเท่านั้น"
             delay(1000L)
@@ -159,6 +210,11 @@ private fun SentinelScreen() {
                     controller.setZoom(16.0)
                     controller.setCenter(realPoint ?: DemoPoint)
                     mapView = this
+                    overlays.add(RouteDrawOverlay(drawingRoute) { points ->
+                        routePoints = points
+                        routeIndex = 0
+                        status = "วางเส้นทางแล้ว • ${points.size} จุด"
+                    })
                     displayedPoint?.let { point ->
                         val marker = Marker(this)
                         marker.position = point
@@ -169,6 +225,23 @@ private fun SentinelScreen() {
                 }
             },
             update = { map ->
+                val drawOverlay = map.overlays.filterIsInstance<RouteDrawOverlay>().firstOrNull()
+                drawOverlay?.enabled = drawingRoute
+                drawOverlay?.onRouteFinished = { points ->
+                    routePoints = points
+                    routeIndex = 0
+                    drawingRoute = false
+                    status = "วางเส้นทางแล้ว • ${points.size} จุด"
+                }
+                map.overlays.removeAll { it is Polyline }
+                if (routePoints.size >= 2) {
+                    val line = Polyline(map).apply {
+                        setPoints(routePoints)
+                        outlinePaint.color = android.graphics.Color.rgb(22, 135, 232)
+                        outlinePaint.strokeWidth = 10f
+                    }
+                    map.overlays.add(line)
+                }
                 val point = displayedPoint
                 if (point != null) {
                     val marker = map.overlays.filterIsInstance<Marker>().firstOrNull() ?: Marker(map).also {
@@ -284,6 +357,26 @@ private fun SentinelScreen() {
                             leadingIcon = { Icon(Icons.Default.Route, null) }
                         )
                     }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            simRunning = false
+                            drawingRoute = !drawingRoute
+                            followLocation = false
+                            status = if (!drawingRoute) "ยกเลิกการวางเส้นทาง" else "ลากนิ้วบนแผนที่จากต้นทางไปปลายทาง"
+                        }, modifier = Modifier.weight(1f)) {
+                            Text(if (drawingRoute) "กำลังวาดเส้นทาง..." else "วางเส้นทางด้วยนิ้ว")
+                        }
+                        OutlinedButton(onClick = {
+                            routePoints = emptyList()
+                            routeIndex = 0
+                            simRunning = false
+                            status = "ล้างเส้นทางแล้ว"
+                        }, modifier = Modifier.weight(1f)) { Text("ล้างเส้นทาง") }
+                    }
+                    if (routePoints.size >= 2) {
+                        val km = routePoints.zipWithNext().sumOf { (a, b) -> a.distanceToAsDouble(b) } / 1000.0
+                        Text("ระยะเส้นที่วาดประมาณ %.2f กม.".format(km), color = RouteBlue, fontSize = 12.sp)
+                    }
                     if (useSimulator) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("ความเร็ว", color = Ink)
@@ -296,7 +389,8 @@ private fun SentinelScreen() {
                             Button(
                                 onClick = {
                                     if (!simRunning) {
-                                        simPoint = simPoint ?: realPoint ?: DemoPoint
+                                        simPoint = if (routePoints.size >= 2) routePoints.first() else simPoint ?: realPoint ?: DemoPoint
+                                        routeIndex = 0
                                         followLocation = true
                                         simRunning = true
                                         status = "กำลังจำลองตำแหน่งภายในแอป"
