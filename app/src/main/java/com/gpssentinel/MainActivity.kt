@@ -111,7 +111,7 @@ private fun SentinelScreen() {
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var drawingRoute by remember { mutableStateOf(false) }
     var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
-    var routeIndex by remember { mutableIntStateOf(0) }
+    var routeProgressMeters by remember { mutableDoubleStateOf(0.0) }
     val hasLocationPermission = remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -193,10 +193,26 @@ private fun SentinelScreen() {
     LaunchedEffect(simRunning, useSimulator, simSpeed) {
         while (simRunning && useSimulator) {
             if (routePoints.size >= 2) {
-                val next = (routeIndex + 1).coerceAtMost(routePoints.lastIndex)
-                routeIndex = next
-                simPoint = routePoints[next]
-                if (next == routePoints.lastIndex) {
+                val segments = routePoints.zipWithNext()
+                val totalDistance = segments.sumOf { (start, end) -> start.distanceToAsDouble(end) }
+                val progress = (routeProgressMeters + simSpeed / 3.6).coerceAtMost(totalDistance)
+                routeProgressMeters = progress
+                var remaining = progress
+                var interpolated = routePoints.last()
+                for ((start, end) in segments) {
+                    val segmentDistance = start.distanceToAsDouble(end)
+                    if (remaining <= segmentDistance) {
+                        val fraction = if (segmentDistance > 0.0) remaining / segmentDistance else 1.0
+                        interpolated = GeoPoint(
+                            start.latitude + (end.latitude - start.latitude) * fraction,
+                            start.longitude + (end.longitude - start.longitude) * fraction
+                        )
+                        break
+                    }
+                    remaining -= segmentDistance
+                }
+                simPoint = interpolated
+                if (progress >= totalDistance) {
                     simRunning = false
                     status = "จำลองถึงปลายทางแล้ว"
                 }
@@ -232,7 +248,7 @@ private fun SentinelScreen() {
                     mapView = this
                     overlays.add(RouteDrawOverlay(drawingRoute) { points ->
                         routePoints = points
-                        routeIndex = 0
+                        routeProgressMeters = 0.0
                         status = "วางเส้นทางแล้ว • ${points.size} จุด"
                     })
                     displayedPoint?.let { point ->
@@ -442,7 +458,7 @@ private fun SentinelScreen() {
                         }
                         OutlinedButton(onClick = {
                             routePoints = emptyList()
-                            routeIndex = 0
+                            routeProgressMeters = 0.0
                             simRunning = false
                             status = "ล้างเส้นทางแล้ว"
                         }, modifier = Modifier.weight(1f)) { Text("ล้างเส้นทาง") }
@@ -464,7 +480,7 @@ private fun SentinelScreen() {
                                 onClick = {
                                     if (!simRunning) {
                                         simPoint = if (routePoints.size >= 2) routePoints.first() else simPoint ?: realPoint ?: DemoPoint
-                                        routeIndex = 0
+                                        routeProgressMeters = 0.0
                                         followLocation = true
                                         simRunning = true
                                         status = "กำลังจำลองตำแหน่งภายในแอป"
