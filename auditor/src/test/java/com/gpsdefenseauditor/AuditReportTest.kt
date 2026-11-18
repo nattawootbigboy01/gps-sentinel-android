@@ -21,6 +21,17 @@ class AuditReportTest {
     }
 
     @Test
+    fun calculatesDistanceFromImportedRoutePoints() {
+        val raw = listOf(
+            "ROUTE|2",
+            "POINT|16.46000|102.82000",
+            "POINT|16.46100|102.82000"
+        ).joinToString("\\n")
+        val distance = AuditRouteAnalyzer.distanceKm(raw)
+        assertTrue(distance != null && distance > 0.1 && distance < 0.12)
+    }
+
+    @Test
     fun ignoresMalformedRowsAndClampsScores() {
         val raw = listOf(
             "CASE|Broken",
