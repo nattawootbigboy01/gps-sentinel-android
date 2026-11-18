@@ -36,7 +36,7 @@ object GpsScenarioLab {
                 { engine.evaluate(LocationSample(16.46001, 102.82, t),
                     LocationSample(16.46, 102.82, t)) }),
             Triple("ความเร็วรายงานไม่ตรงกับระยะทาง", RiskLevel.REVIEW,
-                { engine.evaluate(LocationSample(16.46050, 102.82, t + 5_000_000_000L, 5f, 40f),
+                { engine.evaluate(LocationSample(16.46050, 102.82, t + 3_000_000_000L, 5f, 40f),
                     LocationSample(16.46000, 102.82, t, 5f, 1f)) })
         )
         return fixtures.map { (name, expected, evaluate) ->
