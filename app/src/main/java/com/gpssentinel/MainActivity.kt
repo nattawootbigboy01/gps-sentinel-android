@@ -102,6 +102,9 @@ private fun SentinelScreen() {
     var showResearch by remember { mutableStateOf(true) }
     var followLocation by remember { mutableStateOf(true) }
     var status by remember { mutableStateOf("กำลังตรวจสอบสิทธิ์ GPS") }
+    var mockSignal by remember { mutableStateOf(false) }
+    var anomalySignal by remember { mutableStateOf("") }
+    var lastMeasuredLocation by remember { mutableStateOf<Location?>(null) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var drawingRoute by remember { mutableStateOf(false) }
     var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
@@ -136,7 +139,21 @@ private fun SentinelScreen() {
                 override fun onLocationChanged(location: Location) {
                     realPoint = GeoPoint(location.latitude, location.longitude)
                     speed = if (location.hasSpeed()) (location.speed * 3.6f).roundToInt() else 0
-                    if (!useSimulator) status = "GPS จริง • ความแม่นยำประมาณ ${location.accuracy.roundToInt()} ม."
+                    mockSignal = location.isFromMockProvider
+                    val previous = lastMeasuredLocation
+                    anomalySignal = if (previous != null) {
+                        val elapsedSeconds = (location.time - previous.time) / 1000f
+                        val measuredSpeed = if (elapsedSeconds > 0f) previous.distanceTo(location) / elapsedSeconds else 0f
+                        if (measuredSpeed > 55f) "พบการเปลี่ยนตำแหน่งเร็วผิดปกติ" else ""
+                    } else ""
+                    lastMeasuredLocation = Location(location)
+                    if (!useSimulator) {
+                        status = when {
+                            mockSignal -> "พบสัญญาณ Mock Location จาก Android"
+                            anomalySignal.isNotEmpty() -> anomalySignal
+                            else -> "GPS จริง • ความแม่นยำประมาณ ${location.accuracy.roundToInt()} ม."
+                        }
+                    }
                 }
             }
             try {
