@@ -70,7 +70,7 @@ class GpsRiskEngine(
 
         val age = evaluationElapsedRealtimeNanos - current.elapsedRealtimeNanos
         if (age > staleAfterNanos) {
-            findings += RiskFinding("STALE_FIX", 20, "ข้อมูลตำแหน่งเก่าเกินเกณฑ์")
+            findings += RiskFinding("STALE_FIX", 25, "ข้อมูลตำแหน่งเก่าเกินเกณฑ์")
         } else if (age < 0L) {
             findings += RiskFinding("FUTURE_TIMESTAMP", 35, "เวลาอ้างอิงตำแหน่งอยู่ในอนาคต")
         }
