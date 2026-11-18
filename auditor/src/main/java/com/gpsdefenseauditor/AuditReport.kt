@@ -18,20 +18,33 @@ data class AuditSummary(
 )
 
 object AuditReportParser {
+    private fun value(raw: String, key: String): String {
+        val trimmed = raw.trim()
+        val prefix = "$key="
+        return if (trimmed.startsWith(prefix, ignoreCase = true)) trimmed.substring(prefix.length).trim()
+        else trimmed
+    }
+
     fun parse(raw: String): List<AuditCase> =
         raw.lineSequence()
+            .map { it.trimEnd('\r') }
             .filter { it.startsWith("CASE|") }
             .mapNotNull { line ->
                 val parts = line.split("|", limit = 7)
                 if (parts.size < 7) return@mapNotNull null
-                val score = parts[4].toIntOrNull()?.coerceIn(0, 100) ?: return@mapNotNull null
+                val expected = value(parts[2], "expected")
+                val actual = value(parts[3], "actual")
+                val score = value(parts[4], "score").toIntOrNull()?.coerceIn(0, 100)
+                    ?: return@mapNotNull null
+                val passed = value(parts[5], "passed").toBooleanStrictOrNull()
+                    ?: return@mapNotNull null
                 AuditCase(
-                    name = parts[1],
-                    expected = parts[2],
-                    actual = parts[3],
+                    name = parts[1].trim(),
+                    expected = expected,
+                    actual = actual,
                     score = score,
-                    passed = parts[5].toBooleanStrictOrNull() ?: false,
-                    findings = parts[6]
+                    passed = passed,
+                    findings = value(parts[6], "findings")
                 )
             }.toList()
 }
