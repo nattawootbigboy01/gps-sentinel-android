@@ -123,6 +123,9 @@ private fun SentinelScreen() {
     var routeInfo by remember { mutableStateOf("ยังไม่มีเส้นทางอัตโนมัติ") }
     var stopAtRouteEnd by remember { mutableStateOf(false) }
     var liveSequence by remember { mutableLongStateOf(0L) }
+    val launchableApps = remember { TargetAppCatalog.load(context) }
+    var selectedTarget by remember { mutableStateOf(TargetAppCatalog.restore(context)) }
+    var showTargetPicker by remember { mutableStateOf(false) }
     val hasLocationPermission = remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -419,6 +422,40 @@ private fun SentinelScreen() {
                 if (showResearch) {
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text("ห้องทดลอง GPS", fontWeight = FontWeight.Bold, color = Ink)
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("TARGET APP • แอปเป้าหมาย", fontWeight = FontWeight.Bold)
+                            Text(selectedTarget?.let { it.label + "\n" + it.packageName + " • " + it.versionName } ?: "ยังไม่ได้เลือกแอปเดลิเวอรี่")
+                            OutlinedButton(onClick = { showTargetPicker = true }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Default.Apps, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (selectedTarget == null) "เลือกแอปที่ติดตั้ง" else "เปลี่ยนแอปเป้าหมาย")
+                            }
+                            Text("การเลือกแอปใช้ระบุขอบเขตและแนบชื่อ/เวอร์ชันในรายงานเท่านั้น ไม่ได้ให้ LAB อ่านข้อมูลภายในหรือฉีด GPS ไปยังแอปนั้นโดยตรง", color = Color.Gray, fontSize = 10.sp)
+                        }
+                    }
+                    if (showTargetPicker) {
+                        AlertDialog(
+                            onDismissRequest = { showTargetPicker = false },
+                            title = { Text("เลือกแอปเป้าหมาย") },
+                            text = {
+                                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                                    launchableApps.forEach { app ->
+                                        TextButton(onClick = { selectedTarget = app; TargetAppCatalog.save(context, app); showTargetPicker = false; status = "เลือกเป้าหมายแล้ว: " + app.label }, modifier = Modifier.fillMaxWidth()) {
+                                            Column(Modifier.fillMaxWidth()) {
+                                                Text(app.label, fontWeight = FontWeight.SemiBold)
+                                                Text(app.packageName + " • " + app.versionName, fontSize = 10.sp, color = Color.Gray)
+                                            }
+                                        }
+                                        HorizontalDivider()
+                                    }
+                                    if (launchableApps.isEmpty()) Text("ไม่พบแอปที่เปิดจากหน้าจอแอปได้")
+                                }
+                            },
+                            confirmButton = { TextButton(onClick = { showTargetPicker = false }) { Text("ปิด") } },
+                            dismissButton = { TextButton(onClick = { selectedTarget = null; TargetAppCatalog.clear(context); showTargetPicker = false }) { Text("ล้างเป้าหมาย") } }
+                        )
+                    }
                     OutlinedButton(
                         onClick = {
                             auditReport = MockEnvironmentAudit.inspect(context, lastMeasuredLocation).summary
@@ -450,6 +487,7 @@ private fun SentinelScreen() {
                         onClick = {
                             val exportText = buildString {
                                 appendLine("GPS_LAB_REPORT_V1")
+                                selectedTarget?.let { target -> appendLine("APP|" + target.packageName + "|" + target.label + "|" + target.versionName) } ?: appendLine("APP|UNSELECTED|ยังไม่ได้เลือกแอป|")
                                 GpsScenarioLab.runAll().forEach { result ->
                                     val findingCodes = result.report.findings.joinToString(",") { it.code }
                                     appendLine("CASE|" + result.name + "|" + result.expected + "|" + result.report.level + "|" + result.report.score + "|" + result.passed + "|" + findingCodes)
