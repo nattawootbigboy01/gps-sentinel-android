@@ -4,6 +4,7 @@ import android.Manifest
 import android.view.MotionEvent
 import android.graphics.Canvas
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -237,7 +238,7 @@ private fun SentinelScreen() {
                     displayedPoint?.let { point ->
                         val marker = Marker(this)
                         marker.position = point
-                        marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS SENTINEL" else "ตำแหน่ง GPS ของอุปกรณ์"
+                        marker.title = if (useSimulator) "ตำแหน่งจำลองใน GPS LAB" else "ตำแหน่ง GPS ของอุปกรณ์"
                         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         overlays.add(marker)
                     }
@@ -282,7 +283,7 @@ private fun SentinelScreen() {
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(if (useSimulator) "โหมดจำลอง GPS" else "ตำแหน่งปัจจุบัน", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-                            Text(if (useSimulator) "การเคลื่อนที่จำลองในแอป" else "GPS SENTINEL • LIVE LOCATION", color = Color.White, fontSize = 13.sp)
+                            Text(if (useSimulator) "การเคลื่อนที่จำลองในแอป" else "GPS LAB • LIVE LOCATION", color = Color.White, fontSize = 13.sp)
                         }
                     }
                     HorizontalDivider(color = Color.DarkGray)
@@ -349,7 +350,7 @@ private fun SentinelScreen() {
                     Icon(Icons.Default.Shield, null, tint = Teal, modifier = Modifier.size(26.dp))
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("GPS SENTINEL", color = RouteBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("GPS LAB", color = RouteBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Text(status, color = Color.DarkGray, fontSize = 11.sp, maxLines = 2)
                     }
                     TextButton(onClick = { showResearch = !showResearch }) { Text(if (showResearch) "ย่อ" else "เครื่องมือ") }
@@ -384,6 +385,32 @@ private fun SentinelScreen() {
                         Text("รันทดสอบ GPS เชิงลึก 8 สถานการณ์")
                     }
                     Text(scenarioReport, color = Color.DarkGray, fontSize = 11.sp)
+                    OutlinedButton(
+                        onClick = {
+                            val exportText = buildString {
+                                appendLine("GPS_LAB_REPORT_V1")
+                                GpsScenarioLab.runAll().forEach { result ->
+                                    val findingCodes = result.report.findings.joinToString(",") { it.code }
+                                    appendLine("CASE|" + result.name + "|" + result.expected + "|" + result.report.level + "|" + result.report.score + "|" + result.passed + "|" + findingCodes)
+                                }
+                                appendLine("ROUTE|" + routePoints.size)
+                                routePoints.forEach { point ->
+                                    appendLine("POINT|" + point.latitude + "|" + point.longitude)
+                                }
+                            }
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "GPS LAB test report")
+                                putExtra(Intent.EXTRA_TEXT, exportText)
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "ส่งผลทดสอบไป GPS DEFENSE AUDITOR"))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Share, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("ส่งผลทดสอบไป GPS DEFENSE AUDITOR")
+                    }
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
