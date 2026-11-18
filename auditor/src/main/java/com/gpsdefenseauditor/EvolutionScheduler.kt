@@ -14,6 +14,7 @@ object EvolutionScheduler {
     private const val UNIQUE_ONCE = "mahathep_evolution_once"
 
     fun start(context: Context) {
+        context.getSharedPreferences("mahathep_evolution", Context.MODE_PRIVATE).edit().putBoolean("enabled", true).apply()
         val constraints = Constraints.Builder().build()
         val periodic = PeriodicWorkRequestBuilder<MahathepEvolutionWorker>(15, TimeUnit.MINUTES)
             .setConstraints(constraints)
@@ -25,9 +26,12 @@ object EvolutionScheduler {
     }
 
     fun stop(context: Context) {
+        context.getSharedPreferences("mahathep_evolution", Context.MODE_PRIVATE).edit().putBoolean("enabled", false).apply()
         WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_PERIODIC)
         WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_ONCE)
     }
+
+    fun isEnabled(context: Context): Boolean = context.getSharedPreferences("mahathep_evolution", Context.MODE_PRIVATE).getBoolean("enabled", false)
 
     fun runOnce(context: Context) {
         val request = OneTimeWorkRequestBuilder<MahathepEvolutionWorker>().build()
