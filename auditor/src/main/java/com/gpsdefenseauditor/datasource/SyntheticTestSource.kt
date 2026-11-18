@@ -64,7 +64,8 @@ class SyntheticTestSource(
             currentIndex = 0
             state = State.ASYNC
 
-            val task = Runnable { emitNext(token, sessionCounter) }
+            val sessionId = sessionCounter
+            val task = Runnable { emitNext(token, sessionId) }
             pendingRunnable = task
             handler.post(task)
         }
@@ -99,7 +100,7 @@ class SyntheticTestSource(
                 if (state != State.ASYNC || generationToken != token) return
             }
             activeListener.onTelemetryReceived(frame)
-        } catch (error: Throwable) {
+        } catch (error: Exception) {
             failSession(token, error)
             return
         }
