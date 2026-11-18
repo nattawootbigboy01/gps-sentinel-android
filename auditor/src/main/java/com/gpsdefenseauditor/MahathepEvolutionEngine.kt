@@ -38,7 +38,7 @@ data class EvolutionCycleReport(
  * and validates candidate policies only. It never edits production detector rules.
  */
 object MahathepEvolutionEngine {
-    const val ENGINE_VERSION = "1.0.0"
+    const val ENGINE_VERSION = "1.0.1"
     private const val MAX_GENERATED = 20
     private const val MAX_CANDIDATES = 10
 
@@ -46,10 +46,13 @@ object MahathepEvolutionEngine {
         "ANDROID_MOCK_FLAG" to ("MOCK_PROVIDER_REPORTED" to "ตรวจว่าระบบแยก mock-provider signal ออกจากหลักฐานยืนยันอื่น"),
         "MOCK_LOCATION" to ("MOCK_PROVIDER_REPORTED" to "ทดสอบสัญญาณ mock provider ใน test build ที่ควบคุมได้"),
         "STALE_LOCATION" to ("STALE_FIX" to "ทดสอบอายุข้อมูลตำแหน่งและการปฏิเสธข้อมูลเก่า"),
+        "STALE_FIX" to ("STALE_FIX" to "ทดสอบอายุข้อมูลตำแหน่งและการปฏิเสธข้อมูลเก่า"),
         "FUTURE_TIMESTAMP" to ("FUTURE_TIMESTAMP" to "ทดสอบ timestamp ที่อยู่ในอนาคต"),
         "NON_MONOTONIC_TIME" to ("NON_MONOTONIC_TIMESTAMP" to "ทดสอบ timestamp ซ้ำหรือย้อนลำดับ"),
         "TIMESTAMP" to ("NON_MONOTONIC_TIMESTAMP" to "ทดสอบความต่อเนื่องของเวลา"),
         "IMPLAUSIBLE_DISPLACEMENT" to ("IMPLAUSIBLE_JUMP" to "ทดสอบตำแหน่งกระโดดที่ไม่สัมพันธ์กับเวลา"),
+        "IMPLAUSIBLE_ACCELERATION" to ("SPEED_DISPLACEMENT_MISMATCH" to "ทดสอบความไม่สอดคล้องของความเร็วกับระยะทาง"),
+        "SPEED_DISAGREEMENT" to ("SPEED_DISPLACEMENT_MISMATCH" to "ทดสอบความไม่สอดคล้องของความเร็วกับระยะทาง"),
         "SPEED" to ("SPEED_DISPLACEMENT_MISMATCH" to "ทดสอบความไม่สอดคล้องของความเร็วกับระยะทาง"),
         "LOW_ACCURACY" to ("LOW_ACCURACY_CONTEXT" to "ทดสอบการพิจารณา accuracy ร่วมกับบริบท"),
         "COOLDOWN" to ("COOLDOWN_STATE" to "ทดสอบการเริ่มและสิ้นสุด cooldown ตามนโยบายใน test build"),
@@ -57,17 +60,18 @@ object MahathepEvolutionEngine {
     )
 
     fun generateCases(cases: List<AuditCase>): List<GeneratedTestCase> {
-        val existing = cases.map { it.name.trim().uppercase() }.toSet()
         val generated = linkedMapOf<String, GeneratedTestCase>()
         cases.flatMap { it.findings.split(',', ';', '|') }
             .map { it.trim().uppercase() }
             .filter { it.isNotBlank() }
             .forEach { code ->
-                val entry = scenarioCatalog.entries.firstOrNull { code.contains(it.key) } ?: return@forEach
+                val entry = scenarioCatalog.entries.firstOrNull { code == it.key || code.contains(it.key) }
+                    ?: return@forEach
                 val (id, reason) = entry.value
-                if (id !in existing && id !in generated) {
-                    val expected = when {
-                        id.contains("MOCK") || id.contains("JUMP") || id.contains("TIMESTAMP") || id.contains("FUTURE") -> "HIGH"
+                if (id !in generated) {
+                    val expected = when (id) {
+                        "MOCK_PROVIDER_REPORTED" -> "HIGH"
+                        "LOW_ACCURACY_CONTEXT" -> "LOW"
                         else -> "REVIEW"
                     }
                     generated[id] = GeneratedTestCase(
@@ -144,7 +148,7 @@ object MahathepEvolutionEngine {
             candidateRules = candidates,
             validations = validations,
             status = status,
-            notes = "สร้างกรณีทดสอบและกฎผู้สมัครจากรายงานที่ได้รับเท่านั้น กฎยังไม่ถูกนำไปใช้กับระบบจริง ต้องรัน regression ใน test build และให้ผู้ดูแลอนุมัติ"
+            notes = "สร้างข้อกำหนด Test Case จาก finding ที่รู้จักแล้วเท่านั้น รายการที่สร้างยังไม่ใช่การทดสอบที่รันจริง กฎเป็น Candidate ไม่เปลี่ยนระบบจริง ต้องนำไปเชื่อม test harness และรัน regression ใน test build ก่อนอนุมัติ"
         )
     }
 
