@@ -54,9 +54,9 @@ class AuditorActivity : ComponentActivity() {
     }
 }
 
-@Composable
 private data class TargetApp(val packageName: String, val label: String)
 
+@Composable
 private fun AuditorScreen(incomingReport: String) {
     val liveFix by LiveFeedStore.latest.collectAsState()
     val liveHistory by LiveFeedStore.history.collectAsState()
