@@ -26,7 +26,7 @@ class RoutePlaybackEngineTest {
     @Test
     fun wrapsProgressWhenLoopingIsEnabled() {
         val total = route[0].distanceToAsDouble(route[1])
-        val frame = RoutePlaybackEngine.advance(route, total - 2.0, 36, 5.0, false)
+        val frame = RoutePlaybackEngine.advance(route, total - 2.0, 36, 0.5, false)
         assertNotNull(frame)
         assertEquals(3.0, frame!!.progressMeters, 0.01)
         assertTrue(frame.looped)
