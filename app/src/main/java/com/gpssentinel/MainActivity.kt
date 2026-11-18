@@ -100,6 +100,8 @@ private fun SentinelScreen() {
     }
     val mockLocationController = remember { MockLocationController(locationManager) }
     var systemMockEnabled by remember { mutableStateOf(false) }
+    var showMockAuthorizationDialog by remember { mutableStateOf(false) }
+    var mockScopeConfirmed by remember { mutableStateOf(false) }
     DisposableEffect(mockLocationController) {
         onDispose { mockLocationController.stop() }
     }
@@ -598,19 +600,8 @@ private fun SentinelScreen() {
                                     systemMockEnabled = false
                                     status = "ปิด Android Mock Location แล้ว"
                                 } else {
-                                    try {
-                                        mockLocationController.start()
-                                        systemMockEnabled = true
-                                        val point = simPoint ?: realPoint ?: DemoPoint
-                                        mockLocationController.update(point.latitude, point.longitude, simSpeed.toFloat(), 5f)
-                                        status = "เปิด Android Mock Location แล้ว • ใช้เฉพาะแอปทดสอบที่ได้รับอนุญาต"
-                                    } catch (_: SecurityException) {
-                                        systemMockEnabled = false
-                                        status = "สิทธิ์ไม่พร้อม: เลือก มหาเทพ LAB ใน Developer Options > Select mock location app"
-                                    } catch (_: Exception) {
-                                        systemMockEnabled = false
-                                        status = "เปิด Android Mock Location ไม่สำเร็จ"
-                                    }
+                                    mockScopeConfirmed = false
+                                    showMockAuthorizationDialog = true
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
@@ -653,6 +644,63 @@ private fun SentinelScreen() {
                             }
                         }
                         Text("คำเตือน: Android Mock Location เป็นผู้ให้บริการระดับระบบ แอปอื่นที่ร้องขอ GPS อาจได้รับตำแหน่งทดสอบด้วย ใช้กับแอปที่คุณเป็นเจ้าของหรือได้รับอนุญาต และปิดทันทีเมื่อจบทดสอบ", color = Color.Gray, fontSize = 10.sp)
+                        if (showMockAuthorizationDialog) {
+                            AlertDialog(
+                                onDismissRequest = {
+                                    showMockAuthorizationDialog = false
+                                    mockScopeConfirmed = false
+                                },
+                                title = { Text("ยืนยันขอบเขตการทดสอบ") },
+                                text = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("Android Mock Location เป็นผู้ให้บริการระดับระบบ แอปอื่นที่ร้องขอตำแหน่งอาจได้รับข้อมูลจำลองนี้ด้วย")
+                                        Text(
+                                            selectedTarget?.let { "แอปเป้าหมาย: ${it.label} (${it.packageName})" }
+                                                ?: "กรุณาเลือกแอปเป้าหมายก่อนเปิด Mock Location",
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = mockScopeConfirmed,
+                                                onCheckedChange = { mockScopeConfirmed = it }
+                                            )
+                                            Text("ฉันเป็นเจ้าของแอปเป้าหมายหรือได้รับอนุญาตให้ทดสอบ และจะปิด Mock Location เมื่อเสร็จ")
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        enabled = mockScopeConfirmed && selectedTarget != null,
+                                        onClick = {
+                                            showMockAuthorizationDialog = false
+                                            try {
+                                                mockLocationController.start()
+                                                systemMockEnabled = true
+                                                val point = simPoint ?: realPoint ?: DemoPoint
+                                                mockLocationController.update(point.latitude, point.longitude, simSpeed.toFloat(), 5f)
+                                                status = "เปิด Android Mock Location แล้ว • ขอบเขต: ${selectedTarget?.label}"
+                                            } catch (_: SecurityException) {
+                                                systemMockEnabled = false
+                                                status = "สิทธิ์ไม่พร้อม: เลือก มหาเทพ LAB ใน Developer Options > Select mock location app"
+                                            } catch (_: Exception) {
+                                                systemMockEnabled = false
+                                                status = "เปิด Android Mock Location ไม่สำเร็จ"
+                                            } finally {
+                                                mockScopeConfirmed = false
+                                            }
+                                        }
+                                    ) { Text("ยืนยันและเปิด") }
+                                },
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = {
+                                            showMockAuthorizationDialog = false
+                                            mockScopeConfirmed = false
+                                        }
+                                    ) { Text("ยกเลิก") }
+                                }
+                            )
+                        }
                     } else {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { if (!hasLocationPermission.value) requestLocationPermission() else status = "กำลังค้นหาสัญญาณ GPS จริง..." }, modifier = Modifier.weight(1f)) {
