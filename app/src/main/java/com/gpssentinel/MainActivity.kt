@@ -94,6 +94,11 @@ private fun SentinelScreen() {
     val locationManager = remember {
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
+    val mockLocationController = remember { MockLocationController(locationManager) }
+    var systemMockEnabled by remember { mutableStateOf(false) }
+    DisposableEffect(mockLocationController) {
+        onDispose { mockLocationController.stop() }
+    }
     var realPoint by remember { mutableStateOf<GeoPoint?>(null) }
     var simPoint by remember { mutableStateOf<GeoPoint?>(null) }
     var speed by remember { mutableIntStateOf(0) }
@@ -191,7 +196,7 @@ private fun SentinelScreen() {
         }
     }
 
-    LaunchedEffect(simRunning, useSimulator, simSpeed) {
+    LaunchedEffect(simRunning, useSimulator, simSpeed, systemMockEnabled) {
         while (simRunning && useSimulator) {
             if (routePoints.size >= 2) {
                 val segments = routePoints.zipWithNext()
@@ -223,6 +228,18 @@ private fun SentinelScreen() {
                 simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
             }
             speed = simSpeed
+            if (systemMockEnabled) {
+                try {
+                    val point = simPoint ?: realPoint ?: DemoPoint
+                    mockLocationController.update(point.latitude, point.longitude, simSpeed.toFloat(), 5f)
+                } catch (_: SecurityException) {
+                    systemMockEnabled = false
+                    status = "Android ปฏิเสธ Mock Location: ตรวจว่าเลือก มหาเทพ LAB ใน Developer Options แล้ว"
+                } catch (_: Exception) {
+                    systemMockEnabled = false
+                    status = "ส่งตำแหน่งทดสอบเข้า Android ไม่สำเร็จ"
+                }
+            }
             if (simRunning) {
                 liveSequence += 1L
                 val live = simPoint ?: realPoint ?: DemoPoint
@@ -484,6 +501,38 @@ private fun SentinelScreen() {
                         Text("ระยะเส้นที่วาดประมาณ %.2f กม.".format(km), color = RouteBlue, fontSize = 12.sp)
                     }
                     if (useSimulator) {
+                        OutlinedButton(
+                            onClick = {
+                                if (systemMockEnabled) {
+                                    mockLocationController.stop()
+                                    systemMockEnabled = false
+                                    status = "ปิด Android Mock Location แล้ว"
+                                } else {
+                                    try {
+                                        mockLocationController.start()
+                                        systemMockEnabled = true
+                                        val point = simPoint ?: realPoint ?: DemoPoint
+                                        mockLocationController.update(point.latitude, point.longitude, simSpeed.toFloat(), 5f)
+                                        status = "เปิด Android Mock Location แล้ว • ใช้เฉพาะแอปทดสอบที่ได้รับอนุญาต"
+                                    } catch (_: SecurityException) {
+                                        systemMockEnabled = false
+                                        status = "สิทธิ์ไม่พร้อม: เลือก มหาเทพ LAB ใน Developer Options > Select mock location app"
+                                    } catch (_: Exception) {
+                                        systemMockEnabled = false
+                                        status = "เปิด Android Mock Location ไม่สำเร็จ"
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.LocationOn, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (systemMockEnabled) "ปิด Android Mock Location" else "เปิด Android Mock Location")
+                        }
+                        Text(
+                            if (systemMockEnabled) "กำลังส่งตำแหน่งทดสอบผ่าน Android Location Provider" else "ต้องเลือก มหาเทพ LAB ใน Developer Options ก่อนเปิดใช้งาน",
+                            color = Color.Gray, fontSize = 10.sp
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("ความเร็ว", color = Ink)
                             Text("$simSpeed km/h", fontWeight = FontWeight.Bold, color = RouteBlue)
