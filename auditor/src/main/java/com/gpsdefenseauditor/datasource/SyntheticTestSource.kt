@@ -170,7 +170,7 @@ class SyntheticTestSource(
 
             try {
                 activeListener.onTelemetryReceived(frame)
-            } catch (error: Throwable) {
+            } catch (error: Exception) {
                 failSession(token, error)
                 return
             }
