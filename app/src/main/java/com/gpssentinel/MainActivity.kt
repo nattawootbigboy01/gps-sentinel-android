@@ -105,6 +105,7 @@ private fun SentinelScreen() {
     var mockSignal by remember { mutableStateOf(false) }
     var anomalySignal by remember { mutableStateOf("") }
     var lastMeasuredLocation by remember { mutableStateOf<Location?>(null) }
+    var auditReport by remember { mutableStateOf("ยังไม่ได้ตรวจสภาพแวดล้อม Android") }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var drawingRoute by remember { mutableStateOf(false) }
     var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
@@ -355,6 +356,18 @@ private fun SentinelScreen() {
                 if (showResearch) {
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text("ห้องทดลอง GPS", fontWeight = FontWeight.Bold, color = Ink)
+                    OutlinedButton(
+                        onClick = {
+                            auditReport = MockEnvironmentAudit.inspect(context, lastMeasuredLocation).summary
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Security, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("ตรวจสอบ Mock Location และ Developer Options")
+                    }
+                    Text(auditReport, color = Color.DarkGray, fontSize = 11.sp)
+
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = !useSimulator,
