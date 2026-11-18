@@ -64,6 +64,7 @@ private fun AuditorScreen(incomingReport: String) {
     val context = LocalContext.current
     var selfDefenseRuns by remember { mutableStateOf(SelfDefenseStore.history(context)) }
     var researchReports by remember { mutableStateOf(AutonomousResearchStore.history(context)) }
+    var coreReports by remember { mutableStateOf(SecurityCoreStore.history(context)) }
     val mapView = remember {
         Configuration.getInstance().userAgentValue = context.packageName
         MapView(context).apply {
@@ -111,6 +112,41 @@ private fun AuditorScreen(incomingReport: String) {
         ) {
             Text("GPS DEFENSE AUDITOR", fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("ระบบประเมินผลการทดสอบ GPS", color = MaterialTheme.colorScheme.primary)
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("MAHATHEP SECURITY CORE", fontWeight = FontWeight.Bold)
+                    Text("Offline Core v${MahathepSecurityCore.ENGINE_VERSION} • ไม่ต้องใช้ AI หรืออินเทอร์เน็ต")
+                    val latestCore = coreReports.firstOrNull()
+                    if (latestCore == null) {
+                        Text("ยังไม่มีผลตรวจสุขภาพ Security Core")
+                    } else {
+                        Text(
+                            "ผลล่าสุด: ${latestCore.passed}/${latestCore.total} checks ผ่าน • ${if (latestCore.allPassed) "ผ่านทั้งหมด" else "พบจุดที่ต้องตรวจสอบ"}",
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (latestCore.allPassed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                        latestCore.checks.filterNot { it.passed }.forEach { check ->
+                            Text("${check.id}: ${check.detail}", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                        }
+                        Text("ทดสอบเมื่อ " + java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(latestCore.createdAtMs)), fontSize = 11.sp)
+                    }
+                    Text("ประวัติ ${coreReports.size}/50 รอบ • เก็บในเครื่อง", fontSize = 11.sp)
+                    Button(onClick = {
+                        SecurityCoreStore.run(context)
+                        coreReports = SecurityCoreStore.history(context)
+                        val latest = coreReports.first()
+                        Toast.makeText(context, "Security Core: ${latest.passed}/${latest.total} checks", Toast.LENGTH_LONG).show()
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("ทดสอบ MAHATHEP SECURITY CORE")
+                    }
+                    Text(
+                        "ใช้ข้อมูลสังเคราะห์แบบ Offline เท่านั้น ผลที่ไม่ผ่านเป็นสัญญาณทดสอบที่ตั้งใจใส่ไว้ ไม่ใช่การโจมตีจริง และยังไม่เปลี่ยนกฎป้องกัน",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             Text(sourceLabel, fontSize = 13.sp)
             Text("บันทึกเหตุการณ์ในเครื่อง: ${liveHistory.size}/200", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
             Card(Modifier.fillMaxWidth()) {
