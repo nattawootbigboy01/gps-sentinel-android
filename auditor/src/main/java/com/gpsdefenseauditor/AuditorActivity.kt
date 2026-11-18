@@ -101,6 +101,7 @@ private fun AuditorScreen(incomingReport: String) {
     }
 
     val summary = AuditAnalyzer.summarize(cases)
+    val defenseAssessment = AdaptiveDefenseEngine.analyze(cases)
     Surface(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
@@ -162,6 +163,19 @@ private fun AuditorScreen(incomingReport: String) {
                 MetricCard("แจ้งเตือนเกิน", summary.falseAlarms.toString(), Modifier.weight(1f))
             }
             MetricCard("คะแนนความเสี่ยงเฉลี่ย", summary.averageScore.toString() + "/100", Modifier.fillMaxWidth())
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("MAHATHEP ADAPTIVE DEFENSE", fontWeight = FontWeight.Bold)
+                    Text("Engine v${AdaptiveDefenseEngine.ENGINE_VERSION} • วิเคราะห์จากผลทดสอบที่ได้รับ")
+                    Text("พบจุดพลาด ${defenseAssessment.missedDetections} • แจ้งเตือนเกิน ${defenseAssessment.falseAlarms} • วิเคราะห์ ${defenseAssessment.analyzedCases} กรณี")
+                    defenseAssessment.recommendations.forEach { recommendation ->
+                        Text("[${recommendation.priority}] ${recommendation.title}", fontWeight = FontWeight.SemiBold)
+                        Text(recommendation.reason, fontSize = 12.sp)
+                        Text("แนวทาง: ${recommendation.action}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("ระบบเสนอแนวทางเท่านั้น ยังไม่แก้กฎตรวจจับอัตโนมัติ ต้องตรวจสอบและอนุมัติก่อนนำไปใช้", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                }
+            }
             Button(
                 onClick = {
                     val clipboardText = buildString {
