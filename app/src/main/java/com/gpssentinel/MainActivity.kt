@@ -464,7 +464,7 @@ private fun SentinelScreen() {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = !useSimulator,
-                            onClick = { simRunning = false; useSimulator = false; followLocation = true; status = "โหมด GPS จริงจากโทรศัพท์" },
+                            onClick = { simRunning = false; mockLocationController.stop(); systemMockEnabled = false; useSimulator = false; followLocation = true; status = "โหมด GPS จริงจากโทรศัพท์" },
                             label = { Text("GPS จริง") },
                             leadingIcon = { Icon(Icons.Default.GpsFixed, null) }
                         )
@@ -551,12 +551,14 @@ private fun SentinelScreen() {
                                         status = "กำลังจำลองตำแหน่งภายในแอป"
                                     } else {
                                         simRunning = false
-                                        status = "หยุดการจำลองแล้ว"
+                                        mockLocationController.stop()
+                                        systemMockEnabled = false
+                                        status = "หยุดการจำลองและปิด Android Mock Location แล้ว"
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
                             ) { Text(if (simRunning) "หยุดจำลอง" else "เริ่มจำลอง") }
-                            OutlinedButton(onClick = { simRunning = false; simPoint = realPoint ?: DemoPoint; speed = 0; status = "รีเซ็ตตำแหน่งจำลองแล้ว" }) {
+                            OutlinedButton(onClick = { simRunning = false; mockLocationController.stop(); systemMockEnabled = false; simPoint = realPoint ?: DemoPoint; speed = 0; status = "รีเซ็ตและปิด Android Mock Location แล้ว" }) {
                                 Text("รีเซ็ต")
                             }
                         }
