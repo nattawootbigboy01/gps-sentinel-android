@@ -372,8 +372,10 @@ private fun SentinelScreen() {
                 onClick = {
                     if (!hasLocationPermission.value) requestLocationPermission()
                     else {
-                        useSimulator = false
                         simRunning = false
+                        mockLocationController.stop()
+                        systemMockEnabled = false
+                        useSimulator = false
                         followLocation = true
                         realPoint?.let { mapView?.controller?.animateTo(it) }
                         status = if (realPoint == null) "กำลังค้นหาตำแหน่ง GPS จริง..." else "แสดงตำแหน่ง GPS จริง"
@@ -562,7 +564,7 @@ private fun SentinelScreen() {
                                 Text("รีเซ็ต")
                             }
                         }
-                        Text("หมายเหตุ: ข้อมูลจำลองแสดงเฉพาะใน GPS SENTINEL ไม่ส่งตำแหน่งปลอมให้แอปอื่น", color = Color.Gray, fontSize = 10.sp)
+                        Text("คำเตือน: Android Mock Location เป็นผู้ให้บริการระดับระบบ แอปอื่นที่ร้องขอ GPS อาจได้รับตำแหน่งทดสอบด้วย ใช้กับแอปที่คุณเป็นเจ้าของหรือได้รับอนุญาต และปิดทันทีเมื่อจบทดสอบ", color = Color.Gray, fontSize = 10.sp)
                     } else {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { if (!hasLocationPermission.value) requestLocationPermission() else status = "กำลังค้นหาสัญญาณ GPS จริง..." }, modifier = Modifier.weight(1f)) {
