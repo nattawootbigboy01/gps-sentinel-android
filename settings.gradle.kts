@@ -4,4 +4,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "GPSSentinel"
-include(":app", ":auditor"
+include(":app", ":auditor")
