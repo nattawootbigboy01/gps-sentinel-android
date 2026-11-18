@@ -31,6 +31,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.DisposableEffect
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 
 class AuditorActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +57,34 @@ private fun AuditorScreen(incomingReport: String) {
     val liveFix by LiveFeedStore.latest.collectAsState()
     val liveHistory by LiveFeedStore.history.collectAsState()
     var cases by remember { mutableStateOf(AuditReportParser.parse(incomingReport)) }
+    val context = LocalContext.current
+    val mapView = remember {
+        Configuration.getInstance().userAgentValue = context.packageName
+        MapView(context).apply {
+            setTileSource(TileSourceFactory.MAPNIK)
+            setMultiTouchControls(true)
+            controller.setZoom(15.0)
+            controller.setCenter(GeoPoint(16.4620, 102.8230))
+        }
+    }
+    DisposableEffect(mapView) {
+        mapView.onResume()
+        onDispose { mapView.onPause(); mapView.onDetach() }
+    }
+    LaunchedEffect(liveFix) {
+        liveFix?.let { fix ->
+            val point = GeoPoint(fix.latitude, fix.longitude)
+            val marker = mapView.overlays.filterIsInstance<Marker>().firstOrNull()
+                ?: Marker(mapView).also {
+                    it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    mapView.overlays.add(it)
+                }
+            marker.position = point
+            marker.title = "LAB • ${fix.speedKmh} กม./ชม."
+            mapView.controller.animateTo(point)
+            mapView.invalidate()
+        }
+    }
     var sourceLabel by remember {
         mutableStateOf(if (incomingReport.isBlank()) "ยังไม่มีรายงานจาก GPS LAB" else "รับข้อมูลจากการแชร์แล้ว")
     }
@@ -82,6 +118,13 @@ private fun AuditorScreen(incomingReport: String) {
                         Text("ความเร็ว: ${fix.speedKmh} กม./ชม. • Accuracy: %.1f ม.".format(fix.accuracyMeters))
                         Text("เวลาอุปกรณ์: " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(fix.timestampMs)))
                     }
+                }
+            }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("แผนที่ติดตามตำแหน่งที่รับได้", fontWeight = FontWeight.Bold)
+                    AndroidView(factory = { mapView }, modifier = Modifier.fillMaxWidth().height(230.dp))
+                    Text(if (liveFix == null) "รอพิกัดจาก LAB" else "หมุดจะแสดงพิกัดล่าสุดที่ AUDITOR รับสำเร็จ", fontSize = 11.sp)
                 }
             }
             if (liveHistory.isNotEmpty()) {
