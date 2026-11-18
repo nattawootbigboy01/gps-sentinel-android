@@ -21,6 +21,20 @@ class LiveGpsFixValidationTest {
     }
 
     @Test
+    fun acceptsSequenceRestartWhenTimestampAdvances() {
+        val previous = validFix().copy(sequence = 85L, timestampMs = 1_800_000_000_000L)
+        val nextSession = validFix().copy(sequence = 1L, timestampMs = 1_800_000_001_000L)
+        assertTrue(LiveFeedStore.isNewer(nextSession, previous))
+    }
+
+    @Test
+    fun rejectsDuplicateOrOlderTimestamp() {
+        val previous = validFix().copy(timestampMs = 1_800_000_000_000L)
+        assertFalse(LiveFeedStore.isNewer(validFix().copy(timestampMs = previous.timestampMs), previous))
+        assertFalse(LiveFeedStore.isNewer(validFix().copy(timestampMs = previous.timestampMs - 1L), previous))
+    }
+
+    @Test
     fun rejectsInvalidCoordinates() {
         assertFalse(LiveFeedStore.isValid(validFix().copy(latitude = 91.0)))
         assertFalse(LiveFeedStore.isValid(validFix().copy(longitude = Double.NaN)))
