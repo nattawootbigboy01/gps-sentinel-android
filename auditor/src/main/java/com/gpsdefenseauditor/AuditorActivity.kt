@@ -1,6 +1,10 @@
 package com.gpsdefenseauditor
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -230,6 +234,43 @@ private fun AuditorScreen(incomingReport: String) {
                 MetricCard("แจ้งเตือนเกิน", summary.falseAlarms.toString(), Modifier.weight(1f))
             }
             MetricCard("คะแนนความเสี่ยงเฉลี่ย", summary.averageScore.toString() + "/100", Modifier.fillMaxWidth())
+            Button(
+                onClick = {
+                    val clipboardText = buildString {
+                        appendLine("MAHATHEP AUDITOR - SECURITY TEST REPORT")
+                        appendLine("แหล่งข้อมูล: \${sourceLabel}")
+                        appendLine("แอปเป้าหมาย: \${selectedTarget?.label ?: "ไม่ได้เลือก"}")
+                        appendLine("Package: \${selectedTarget?.packageName ?: "-"}")
+                        appendLine("สรุป: ทั้งหมด \${summary.total}, ผ่าน \${summary.passed}, พลาดการตรวจจับ \${summary.missed}, แจ้งเตือนเกิน \${summary.falseAlarms}, คะแนนเฉลี่ย \${summary.averageScore}/100")
+                        appendLine()
+                        appendLine("[LIVE GPS]")
+                        liveFix?.let { fix ->
+                            appendLine("sequence=\${fix.sequence}, source=\${fix.source}")
+                            appendLine("latitude=\${fix.latitude}, longitude=\${fix.longitude}")
+                            appendLine("speedKmh=\${fix.speedKmh}, accuracyMeters=\${fix.accuracyMeters}, timestampMs=\${fix.timestampMs}")
+                        } ?: appendLine("ยังไม่มีข้อมูล GPS ล่าสุด")
+                        appendLine()
+                        appendLine("[GPS HISTORY - ล่าสุดไม่เกิน 50 รายการ]")
+                        liveHistory.takeLast(50).forEach { fix ->
+                            appendLine("#\${fix.sequence}|\${fix.latitude},\${fix.longitude}|\${fix.speedKmh} km/h|accuracy=\${fix.accuracyMeters}m|time=\${fix.timestampMs}|\${fix.source}")
+                        }
+                        appendLine()
+                        appendLine("[TEST CASES]")
+                        if (cases.isEmpty()) appendLine("ไม่มีผลทดสอบ")
+                        cases.forEach { item ->
+                            appendLine("CASE|\${item.name}|expected=\${item.expected}|actual=\${item.actual}|score=\${item.score}|passed=\${item.passed}|findings=\${item.findings}")
+                        }
+                        appendLine()
+                        appendLine("หมายเหตุ: รายงานนี้มีพิกัด GPS จริง/จำลอง โปรดตรวจสอบก่อนส่งต่อ และใช้เฉพาะข้อมูลที่ได้รับอนุญาต")
+                    }
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("MAHATHEP AUDITOR report", clipboardText))
+                    Toast.makeText(context, "คัดลอกข้อมูล AUDITOR แล้ว", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("คัดลอกข้อมูลสำหรับส่งให้ ChatGPT")
+            }
             Text("รายละเอียดแต่ละสถานการณ์", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             if (cases.isEmpty()) {
                 Text("เปิด GPS LAB แล้วกด “ส่งผลทดสอบไป GPS DEFENSE AUDITOR” เพื่อส่งรายงานเข้ามา")
