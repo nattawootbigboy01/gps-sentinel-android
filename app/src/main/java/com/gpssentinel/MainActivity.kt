@@ -209,32 +209,22 @@ private fun SentinelScreen() {
     LaunchedEffect(simRunning, useSimulator, simSpeed, systemMockEnabled, stopAtRouteEnd) {
         while (simRunning && useSimulator) {
             if (routePoints.size >= 2) {
-                val segments = routePoints.zipWithNext()
-                val totalDistance = segments.sumOf { (start, end) -> start.distanceToAsDouble(end) }
-                val nextProgress = routeProgressMeters + simSpeed / 3.6
-                val progress = if (stopAtRouteEnd) nextProgress.coerceAtMost(totalDistance) else if (nextProgress >= totalDistance) nextProgress % totalDistance else nextProgress
-                routeProgressMeters = progress
-                var remaining = progress
-                var interpolated = routePoints.last()
-                for ((start, end) in segments) {
-                    val segmentDistance = start.distanceToAsDouble(end)
-                    if (remaining <= segmentDistance) {
-                        val fraction = if (segmentDistance > 0.0) remaining / segmentDistance else 1.0
-                        interpolated = GeoPoint(
-                            start.latitude + (end.latitude - start.latitude) * fraction,
-                            start.longitude + (end.longitude - start.longitude) * fraction
-                        )
-                        break
-                    }
-                    remaining -= segmentDistance
-                }
-                simPoint = interpolated
-                if (nextProgress >= totalDistance) {
-                    if (stopAtRouteEnd) {
-                        simRunning = false
-                        status = "ถึงปลายทางแล้ว • หยุดจำลองอัตโนมัติ"
-                    } else {
-                        status = "วนเส้นทางต่อเนื่อง • กดหยุดเพื่อจบการจำลอง"
+                val frame = RoutePlaybackEngine.advance(
+                    route = routePoints,
+                    currentProgressMeters = routeProgressMeters,
+                    speedKmh = simSpeed,
+                    elapsedSeconds = 1.0,
+                    stopAtEnd = stopAtRouteEnd
+                )
+                if (frame != null) {
+                    routeProgressMeters = frame.progressMeters
+                    simPoint = frame.point
+                    when {
+                        frame.reachedEnd -> {
+                            simRunning = false
+                            status = "ถึงปลายทางแล้ว • หยุดจำลองอัตโนมัติ"
+                        }
+                        frame.looped -> status = "วนเส้นทางต่อเนื่อง • กดหยุดเพื่อจบการจำลอง"
                     }
                 }
             } else {
