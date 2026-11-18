@@ -2,7 +2,7 @@
     <permission android:name="com.gpsdefenseauditor.permission.LIVE_FEED" android:protectionLevel="signature" />
     <application
         android:allowBackup="false"
-        android:label="GPS DEFENSE AUDITOR"
+        android:label="มหาเทพ AUDITOR"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <receiver
             android:name=".LiveFixReceiver"
