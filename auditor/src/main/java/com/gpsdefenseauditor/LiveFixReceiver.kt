@@ -31,10 +31,9 @@ object LiveFeedStore {
     @Synchronized
     fun restore(context: Context) {
         if (restored) return
-        restored = true
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_HISTORY, null) ?: return
-        val parsed = runCatching {
+            .getString(KEY_HISTORY, null)
+        val parsed = if (raw.isNullOrBlank()) emptyList() else runCatching {
             val array = JSONArray(raw)
             (0 until array.length()).mapNotNull { index ->
                 val item = array.optJSONObject(index) ?: return@mapNotNull null
@@ -50,14 +49,14 @@ object LiveFeedStore {
             }.takeLast(MAX_HISTORY)
         }.getOrDefault(emptyList())
         _history.value = parsed
+        _latest.value = parsed.lastOrNull()
+        restored = true
     }
 
     @Synchronized
     fun accept(context: Context, fix: LiveGpsFix): Boolean {
         restore(context)
-        if (!isValid(fix)) return false
-        val previous = _latest.value
-        if (previous != null && fix.sequence <= previous.sequence) return false
+        if (!isValid(fix) || !isNewer(fix, _latest.value)) return false
         _latest.value = fix
         val updated = (_history.value + fix).takeLast(MAX_HISTORY)
         _history.value = updated
@@ -77,6 +76,9 @@ object LiveFeedStore {
             .edit().putString(KEY_HISTORY, array.toString()).apply()
         return true
     }
+
+    internal fun isNewer(fix: LiveGpsFix, previous: LiveGpsFix?): Boolean =
+        previous == null || fix.timestampMs > previous.timestampMs
 
     internal fun isValid(fix: LiveGpsFix): Boolean =
         fix.sequence >= 0L &&
