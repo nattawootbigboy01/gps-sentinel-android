@@ -98,16 +98,6 @@ private fun SentinelScreen() {
     val context = LocalContext.current
     val activityWindow = (context as? Activity)?.window
     val coroutineScope = rememberCoroutineScope()
-    DisposableEffect(simRunning) {
-        if (simRunning) {
-            activityWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-            activityWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
-        onDispose {
-            activityWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
-    }
     val locationManager = remember {
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
@@ -123,6 +113,16 @@ private fun SentinelScreen() {
     var speed by remember { mutableIntStateOf(0) }
     var simSpeed by remember { mutableIntStateOf(35) }
     var simRunning by remember { mutableStateOf(false) }
+    DisposableEffect(simRunning) {
+        if (simRunning) {
+            activityWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activityWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activityWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
     var useSimulator by remember { mutableStateOf(false) }
     var showResearch by remember { mutableStateOf(false) }
     var followLocation by remember { mutableStateOf(true) }
