@@ -1,4 +1,4 @@
-# CI validation for the current two-hour GPS test-session updates.
+# CI validation for the current two-hour GPS test-session updates (compile-order fix).
 name: Android Build
 on:
   workflow_dispatch:
