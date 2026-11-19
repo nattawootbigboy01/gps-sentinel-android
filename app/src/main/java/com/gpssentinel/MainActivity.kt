@@ -3,6 +3,7 @@ package com.gpssentinel
 import android.Manifest
 import android.view.MotionEvent
 import android.graphics.Canvas
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -95,7 +96,18 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SentinelScreen() {
     val context = LocalContext.current
+    val activityWindow = (context as? Activity)?.window
     val coroutineScope = rememberCoroutineScope()
+    DisposableEffect(simRunning) {
+        if (simRunning) {
+            activityWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activityWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activityWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
     val locationManager = remember {
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
@@ -255,6 +267,7 @@ private fun SentinelScreen() {
             }
             speed = simSpeed
             var providerPublishCallReturned = false
+            var providerStatus: String? = null
             if (systemMockEnabled) {
                 try {
                     val point = simPoint ?: realPoint ?: DemoPoint
@@ -262,10 +275,10 @@ private fun SentinelScreen() {
                     providerPublishCallReturned = true
                 } catch (_: SecurityException) {
                     systemMockEnabled = false
-                    status = "Android ปฏิเสธ Mock Location: ตรวจว่าเลือก มหาเทพ LAB ใน Developer Options แล้ว"
+                    providerStatus = "Android ปฏิเสธ Mock Location: ตรวจว่าเลือก มหาเทพ LAB ใน Developer Options แล้ว"
                 } catch (_: Exception) {
                     systemMockEnabled = false
-                    status = "ส่งตำแหน่งทดสอบเข้า Android ไม่สำเร็จ"
+                    providerStatus = "ส่งตำแหน่งทดสอบเข้า Android ไม่สำเร็จ"
                 }
             }
             if (simRunning) {
@@ -287,7 +300,7 @@ private fun SentinelScreen() {
                     putExtra("target_package", selectedTarget?.packageName ?: "UNSELECTED")
                 }
                 context.sendBroadcast(feed, "com.gpsdefenseauditor.permission.LIVE_FEED")
-                status = "SIMULATOR • ส่งข้อมูลสดไปยัง GPS DEFENSE AUDITOR"
+                status = providerStatus ?: "SIMULATOR • ส่งข้อมูลสดไปยัง GPS DEFENSE AUDITOR"
             }
             delay(1000L)
         }
