@@ -213,8 +213,13 @@ private fun SentinelScreen() {
     }
 
     LaunchedEffect(simRunning, useSimulator, simSpeed, systemMockEnabled, stopAtRouteEnd) {
+        var previousTickElapsedMs = SystemClock.elapsedRealtime()
         while (simRunning && useSimulator) {
-            val sessionElapsed = if (testSessionStartElapsedMs > 0L) SystemClock.elapsedRealtime() - testSessionStartElapsedMs else 0L
+            val tickElapsedMs = SystemClock.elapsedRealtime()
+            val elapsedSeconds = ((tickElapsedMs - previousTickElapsedMs).coerceAtLeast(1L) / 1000.0)
+                .coerceAtMost(5.0)
+            previousTickElapsedMs = tickElapsedMs
+            val sessionElapsed = if (testSessionStartElapsedMs > 0L) tickElapsedMs - testSessionStartElapsedMs else 0L
             testSessionElapsedMs = sessionElapsed.coerceAtLeast(0L)
             if (sessionElapsed >= maxTestDurationMs) {
                 simRunning = false
@@ -229,7 +234,7 @@ private fun SentinelScreen() {
                     route = routePoints,
                     currentProgressMeters = routeProgressMeters,
                     speedKmh = simSpeed,
-                    elapsedSeconds = 1.0,
+                    elapsedSeconds = elapsedSeconds,
                     stopAtEnd = stopAtRouteEnd
                 )
                 if (frame != null) {
@@ -245,7 +250,7 @@ private fun SentinelScreen() {
                 }
             } else {
                 val point = simPoint ?: realPoint ?: DemoPoint
-                val scale = simSpeed / 35.0
+                val scale = (simSpeed / 35.0) * elapsedSeconds
                 simPoint = GeoPoint(point.latitude + 0.000035 * scale, point.longitude + 0.000055 * scale)
             }
             speed = simSpeed
