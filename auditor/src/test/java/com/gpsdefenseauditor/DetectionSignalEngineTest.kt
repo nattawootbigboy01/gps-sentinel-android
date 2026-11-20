@@ -9,27 +9,27 @@ class DetectionSignalEngineTest {
         lon: Double = 102.8230,
         accuracy: Float = 8f,
         speed: Float = 0f,
-        wall: Long = 1_000_000L,
+        wall: Long = 2_000_000L,
         elapsed: Long = 1_000_000_000L,
         mock: Boolean = false,
         source: String = "AUTHORIZED_TEST_HARNESS"
     ) = LocationEvidence(lat, lon, accuracy, speed, wall, elapsed, mock, source)
 
     @Test fun emptyInputIsInsufficientRatherThanClear() {
-        val result = DetectionSignalEngine.assess(emptyList(), 1_000_000L)
+        val result = DetectionSignalEngine.assess(emptyList(), 2_000_000L)
         assertEquals(SignalVerdict.INSUFFICIENT_DATA, result.verdict)
         assertEquals(0, result.riskScore)
     }
 
     @Test fun explicitMockFlagIsHighRiskAndNeverClaimedAsBlocked() {
-        val result = DetectionSignalEngine.assess(listOf(sample(mock = true)), 1_000_000L)
+        val result = DetectionSignalEngine.assess(listOf(sample(mock = true)), 2_000_000L)
         assertEquals(SignalVerdict.DETECTED, result.verdict)
         assertTrue(result.findings.any { it.code == "MOCK_PROVIDER_FLAG" })
         assertTrue(result.limitations.contains("BLOCKED ต้องยืนยัน"))
     }
 
     @Test fun invalidCoordinatesAreCritical() {
-        val result = DetectionSignalEngine.assess(listOf(sample(lat = 95.0)), 1_000_000L)
+        val result = DetectionSignalEngine.assess(listOf(sample(lat = 95.0)), 2_000_000L)
         assertEquals(SignalVerdict.DETECTED, result.verdict)
         assertTrue(result.findings.any { it.severity == SignalSeverity.CRITICAL })
     }
@@ -55,7 +55,7 @@ class DetectionSignalEngineTest {
     @Test fun cleanConsistentEvidenceDoesNotCreateAnAlert() {
         val result = DetectionSignalEngine.assess(
             listOf(
-                sample(wall = 1_000_000L, elapsed = 1_000_000_000L),
+                sample(wall = 1_999_000L, elapsed = 1_000_000_000L),
                 sample(lat = 16.46201, wall = 2_000_000L, elapsed = 2_000_000_000L, speed = 1.1f)
             ),
             2_000_000L
