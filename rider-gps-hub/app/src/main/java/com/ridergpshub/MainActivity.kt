@@ -97,8 +97,7 @@ private fun RiderGpsHubScreen() {
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
-            controller.setZoom(15.0)
-            controller.setCenter(GeoPoint(16.4620, 102.8230))
+            controller.setZoom(4.0)
         }
     }
     val userMarker = remember(mapView) {
@@ -137,12 +136,21 @@ private fun RiderGpsHubScreen() {
             override fun onProviderDisabled(provider: String) { gpsEnabled = false }
         }
         try {
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 3f, listener)
-                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let { location = it }
+            val fineGranted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            val provider = if (fineGranted && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                LocationManager.GPS_PROVIDER
             } else if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 10f, listener)
-                locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)?.let { location = it }
+                LocationManager.NETWORK_PROVIDER
+            } else {
+                null
+            }
+            provider?.let {
+                val interval = if (it == LocationManager.GPS_PROVIDER) 2000L else 5000L
+                val distance = if (it == LocationManager.GPS_PROVIDER) 3f else 10f
+                locationManager.requestLocationUpdates(it, interval, distance, listener)
+                locationManager.getLastKnownLocation(it)?.let { last -> location = last }
             }
         } catch (_: SecurityException) {
             permissionGranted = false
