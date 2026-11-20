@@ -1,6 +1,7 @@
 package com.ridergpshub
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -75,7 +76,7 @@ private fun RiderGpsHubScreen() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val locationManager = remember {
-        context.getSystemService(ComponentActivity.LOCATION_SERVICE) as LocationManager
+        context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
     var location by remember { mutableStateOf<Location?>(null) }
     var permissionGranted by remember {
