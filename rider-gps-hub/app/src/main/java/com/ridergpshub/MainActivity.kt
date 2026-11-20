@@ -247,13 +247,11 @@ private fun RiderGpsHubScreen() {
                             } else if (location == null) {
                                 Text("ตรวจสอบว่าเปิดบริการตำแหน่งของโทรศัพท์แล้ว", color = Color(0xFF9A6515), fontSize = 12.sp)
                             }
-                            Text("การเชื่อมต่อ Grab · Shopee · LINE MAN จะเพิ่มในขั้นตอนถัดไป", color = Color.Gray, fontSize = 11.sp)
+                            Text("ระบบนี้พัฒนาสำหรับ Shopee / SPX Express โดยเฉพาะ", color = Color.Gray, fontSize = 11.sp)
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlatformPill("GRAB", Color(0xFF159B61), Modifier.weight(1f))
-                        PlatformPill("SHOPEE", Color(0xFFE66A27), Modifier.weight(1f))
-                        PlatformPill("LINE MAN", Color(0xFF16A36A), Modifier.weight(1f))
+                        PlatformPill("SHOPEE / SPX EXPRESS", Color(0xFFE66A27), Modifier.weight(1f))
                     }
                     Card(
                         modifier = Modifier.fillMaxWidth(),
